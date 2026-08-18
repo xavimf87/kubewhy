@@ -26,7 +26,7 @@ kubectl delete namespace kubewhy-demo
 
 | Manifest | What breaks | Expected finding |
 | --- | --- | --- |
-| `oom.yaml` | A container fills memory-backed storage past its 32Mi limit. | `POD_OOM_KILLED` |
+| `oom.yaml` | A container allocates memory past its 32Mi limit. | `POD_OOM_KILLED` |
 | `crash-loop.yaml` | The process exits with code 1 immediately, forever. | `POD_CRASH_LOOP` |
 | `command-not-found.yaml` | The entrypoint does not exist in the image. | `POD_CRASH_LOOP` (exit code 127) |
 | `image-pull.yaml` | The image reference does not exist. | `POD_IMAGE_PULL_FAILED` |

@@ -3,10 +3,12 @@ package pod
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/xavimf87/kubewhy/internal/diagnosis"
+	"github.com/xavimf87/kubewhy/internal/format"
 	"github.com/xavimf87/kubewhy/internal/snapshot"
 )
 
@@ -141,6 +143,28 @@ func containerRunning(c snapshot.Container) bool {
 	return c.Status != nil && c.Status.State.Running != nil
 }
 
+// recentRestartWindow is how long a termination stays relevant. A container
+// that failed last week and has run since is not failing now.
+const recentRestartWindow = 10 * time.Minute
+
+// isFlapping reports whether a container is in a restart loop right now, even
+// though it happens to be running at this instant.
+//
+// Catching a crash loop mid-attempt is common: the kubelet restarts the
+// container, it runs for a few seconds, and it dies again. Looking only for
+// the CrashLoopBackOff waiting state misses exactly the window in which the
+// container is running, and would leave the failure unexplained.
+func isFlapping(c snapshot.Container, now time.Time) bool {
+	if c.Restarts() < 2 {
+		return false
+	}
+	last := c.LastTerminated()
+	if last == nil || last.ExitCode == 0 {
+		return false
+	}
+	return now.Sub(last.FinishedAt.Time) <= recentRestartWindow
+}
+
 // severityFor returns critical when the Pod is currently affected and warning
 // when the container has already recovered from the failure.
 func severityFor(recovered bool) diagnosis.Severity {
@@ -148,4 +172,13 @@ func severityFor(recovered bool) diagnosis.Severity {
 		return diagnosis.SeverityWarning
 	}
 	return diagnosis.SeverityCritical
+}
+
+// restartSummary describes how often and how recently a container restarted.
+func restartSummary(c snapshot.Container, now time.Time) string {
+	out := fmt.Sprintf("%d restarts", c.Restarts())
+	if last := c.LastTerminated(); last != nil && !last.FinishedAt.IsZero() {
+		out += fmt.Sprintf(", most recent %s ago", format.Duration(now.Sub(last.FinishedAt.Time)))
+	}
+	return out
 }

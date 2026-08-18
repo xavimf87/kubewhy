@@ -29,9 +29,17 @@ func crashLoopRule() diagnosis.Rule[*snapshot.Pod] {
 func evaluateCrashLoop(_ context.Context, snap *snapshot.Pod) []diagnosis.Diagnosis {
 	var out []diagnosis.Diagnosis
 
+	if snap.IsTerminal() {
+		return nil
+	}
+
 	for _, container := range snap.Containers() {
 		waiting := container.Waiting()
-		if waiting == nil || waiting.Reason != crashLoopReason {
+		backingOff := waiting != nil && waiting.Reason == crashLoopReason
+		// A container caught between attempts is running right now, so there
+		// is no backoff state to see. The restarts still say what is going on.
+		flapping := isFlapping(container, snap.Now)
+		if !backingOff && !flapping {
 			continue
 		}
 		// An OOM kill is a specific, certain cause and is reported on its own.
@@ -54,14 +62,22 @@ func evaluateCrashLoop(_ context.Context, snap *snapshot.Pod) []diagnosis.Diagno
 			Summary:    fmt.Sprintf("%s %q is restarting repeatedly", capitalize(container.Kind()), container.Name),
 		}
 
-		if id == IDInitContainerFailed {
+		switch {
+		case id == IDInitContainerFailed:
 			d.Explanation = fmt.Sprintf(
 				"The Pod cannot start because init container %q keeps failing. Kubernetes runs init "+
 					"containers to completion before starting the regular containers, so the Pod stays "+
 					"blocked until this one succeeds.", container.Name)
-		} else {
+		case backingOff:
 			d.Explanation = fmt.Sprintf(
 				"Kubernetes restarted %q after each exit and is now backing off between attempts.", container.Name)
+		default:
+			d.Explanation = fmt.Sprintf(
+				"Kubernetes has restarted %q %s. It is running again at this moment, which is what a "+
+					"restart loop looks like between attempts.", container.Name, restartSummary(container, snap.Now))
+			if container.Ready() {
+				d.Severity = diagnosis.SeverityWarning
+			}
 		}
 
 		d.Evidence = append(d.Evidence, containerEvidence(container)...)

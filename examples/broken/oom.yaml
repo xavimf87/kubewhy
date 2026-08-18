@@ -1,5 +1,16 @@
-# Fills memory-backed storage until the container passes its 32Mi limit and
-# the kernel kills it. Expected: POD_OOM_KILLED.
+# Allocates memory until the container passes its 32Mi limit and the kernel
+# kills it. Expected: POD_OOM_KILLED.
+#
+# Two details make this reliable, and both are the kind of thing that makes an
+# OOM hard to reproduce on purpose:
+#
+#   * `tail /dev/zero` accumulates anonymous memory with no end, so the cgroup
+#     limit is always what stops it. Filling a memory-backed emptyDir races
+#     the tmpfs size limit against the cgroup limit and reports ENOSPC as often
+#     as OOMKilled.
+#   * `exec` makes it PID 1. Kubernetes only records OOMKilled when the
+#     container's main process dies; a shell that outlives a killed child
+#     leaves the container Running with nothing reported.
 apiVersion: v1
 kind: Pod
 metadata:
@@ -9,17 +20,7 @@ spec:
   containers:
     - name: hungry
       image: busybox:1.36
-      command:
-        - sh
-        - -c
-        - "dd if=/dev/zero of=/dev/shm/fill bs=1M count=256; sleep 3600"
+      command: ["sh", "-c", "exec tail /dev/zero"]
       resources:
         requests: { cpu: 10m, memory: 16Mi }
         limits: { cpu: 100m, memory: 32Mi }
-      volumeMounts:
-        - name: memory
-          mountPath: /dev/shm
-  volumes:
-    - name: memory
-      emptyDir:
-        medium: Memory

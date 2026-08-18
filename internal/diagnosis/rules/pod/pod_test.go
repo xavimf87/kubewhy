@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -557,5 +558,78 @@ func TestCatalogIsComplete(t *testing.T) {
 	}
 	if emitted[IDNotReadyUnexplained] {
 		t.Error("the fallback identifier must not be claimed by a rule")
+	}
+}
+
+// A crash loop caught between attempts has no CrashLoopBackOff state to see:
+// the container is running at that instant. The restarts still say what is
+// happening, and leaving it unexplained sends the user to the wrong place.
+func TestCrashLoopIsDetectedBetweenRestarts(t *testing.T) {
+	snap := kubetest.Snap(kubetest.Pod("worker").
+		Condition(corev1.PodReady, corev1.ConditionFalse, "ContainersNotReady", "").
+		Container(kubetest.Container("worker").NotReady().
+			Restarts(4).LastTerminatedAgo("Error", 1, 30*time.Second)).
+		Build())
+
+	d, ok := find(evaluate(snap), IDCrashLoop)
+	if !ok {
+		t.Fatalf("expected a crash loop finding, got %v", ids(evaluate(snap)))
+	}
+	if d.Severity != diagnosis.SeverityCritical {
+		t.Errorf("severity = %s, want critical", d.Severity)
+	}
+	if !strings.Contains(d.Explanation, "4 restarts") {
+		t.Errorf("explanation should state how often it restarted: %q", d.Explanation)
+	}
+	if len(Fallback(snap)) != 0 && len(evaluate(snap)) == 0 {
+		t.Error("the fallback should not be needed once a rule fires")
+	}
+}
+
+// The negative cases that keep the above from becoming a false positive.
+func TestRestartsAloneAreNotACrashLoop(t *testing.T) {
+	tests := []struct {
+		name      string
+		container *kubetest.ContainerBuilder
+	}{
+		{
+			name:      "a single restart is not a pattern",
+			container: kubetest.Container("api").Restarts(1).LastTerminatedAgo("Error", 1, 30*time.Second),
+		},
+		{
+			name:      "an old failure is not happening now",
+			container: kubetest.Container("api").Restarts(6).LastTerminatedAgo("Error", 1, 3*time.Hour),
+		},
+		{
+			name:      "restarts after a clean exit are not failures",
+			container: kubetest.Container("api").Restarts(5).LastTerminatedAgo("Completed", 0, 30*time.Second),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			snap := kubetest.Snap(kubetest.Pod("api").Ready().Container(tt.container).Build())
+			if got := ids(evaluate(snap)); contains(got, IDCrashLoop) {
+				t.Errorf("did not expect a crash loop finding, got %v", got)
+			}
+		})
+	}
+}
+
+// A container still cycling through OOM kills has not recovered, even though
+// it happens to be running at this instant.
+func TestFlappingOOMStaysCritical(t *testing.T) {
+	snap := kubetest.Snap(kubetest.Pod("api").
+		Condition(corev1.PodReady, corev1.ConditionFalse, "ContainersNotReady", "").
+		Container(kubetest.Container("api").NotReady().Memory("", "512Mi").
+			Restarts(5).LastTerminatedAgo("OOMKilled", 137, 20*time.Second)).
+		Build())
+
+	d, ok := find(evaluate(snap), IDOOMKilled)
+	if !ok {
+		t.Fatal("expected an OOM finding")
+	}
+	if d.Severity != diagnosis.SeverityCritical {
+		t.Errorf("severity = %s, want critical while it is still cycling", d.Severity)
 	}
 }

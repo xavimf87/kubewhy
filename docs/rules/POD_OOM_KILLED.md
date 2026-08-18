@@ -46,4 +46,4 @@ ROOT CAUSE
 
 - **Exit code 137 alone is not an OOM kill.** It means the process received SIGKILL, whoever sent it. Without an `OOMKilled` reason this rule stays silent, and [`POD_CRASH_LOOP`](POD_CRASH_LOOP.md) reports the restart loop with SIGKILL listed among the possible causes.
 - It cannot distinguish a container that grew slowly from one that allocated a large amount at once; that requires metrics KubeWhy does not use.
-- A container OOM-killed once and running fine since is reported as a warning, not a failure.
+- A container OOM-killed once and running fine since is reported as a warning, not a failure. A container that is running but still cycling through the same kill — two or more restarts, the last one recent — stays critical: it has not recovered, it is between attempts.

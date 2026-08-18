@@ -216,3 +216,36 @@ func TestCatalogIsComplete(t *testing.T) {
 		}
 	}
 }
+
+// A provisioner cannot succeed against a class that does not exist, so the two
+// findings are one story rather than two problems.
+func TestProvisioningFailureIsLinkedToTheMissingClass(t *testing.T) {
+	snap := kubetest.PVCSnap(kubetest.Claim("data").StorageClass("premium-ssd").Build())
+	snap.Class = kubetest.ClassInfo("premium-ssd", "", true, snapshot.Missing)
+	snap.Events = snapshot.Events{kubetest.Event("Warning", "ProvisioningFailed",
+		`storageclass.storage.k8s.io "premium-ssd" not found`)}
+
+	got := diagnosis.Prioritize(evaluate(snap))
+	failure, ok := find(got, IDProvisioningFailed)
+	if !ok {
+		t.Fatal("expected a provisioning finding")
+	}
+	if failure.CausedBy != IDStorageClassNotFound {
+		t.Errorf("causedBy = %q, want the missing class", failure.CausedBy)
+	}
+	if got[0].ID != IDStorageClassNotFound {
+		t.Errorf("first finding = %s, want the root cause first", got[0].ID)
+	}
+}
+
+// When a class exists, the provisioner's failure is its own problem.
+func TestProvisioningFailureStandsAloneWithAValidClass(t *testing.T) {
+	snap := kubetest.PVCSnap(kubetest.Claim("data").StorageClass("fast").Build())
+	snap.Class = kubetest.ClassInfo("fast", "Immediate", true, snapshot.Found)
+	snap.Events = snapshot.Events{kubetest.Event("Warning", "ProvisioningFailed", "quota exceeded")}
+
+	d, _ := find(evaluate(snap), IDProvisioningFailed)
+	if d.CausedBy != "" {
+		t.Errorf("causedBy = %q, want no link when the class is fine", d.CausedBy)
+	}
+}

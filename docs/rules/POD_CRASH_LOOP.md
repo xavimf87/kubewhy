@@ -7,15 +7,25 @@
 
 ## What it detects
 
-A container in `CrashLoopBackOff`: the kubelet restarted it after each exit and is now waiting between attempts. When the container is an init container, the finding is reported as `POD_INIT_CONTAINER_FAILED`, because the Pod cannot start at all until it succeeds.
+A container that keeps dying and being restarted. That shows up in two ways, and the rule looks for both:
+
+1. **In backoff** — `state.waiting.reason` is `CrashLoopBackOff`, the state most `kubectl get` output catches.
+2. **Between attempts** — the container is *running right now*, but has restarted at least twice and its previous run ended badly within the last ten minutes.
+
+The second case matters more than it looks. A container that runs for two seconds and dies spends much of its time running, so a check that only looks for `CrashLoopBackOff` misses it exactly when the container happens to be up — and the failure would then be reported as "not ready, cause unknown". This was found by running the rules against a real cluster rather than against fixtures.
+
+When the container is an init container, the finding is reported as `POD_INIT_CONTAINER_FAILED`, because the Pod cannot start at all until it succeeds.
 
 ## Evidence used
 
 | Source | Field | Meaning |
 | --- | --- | --- |
-| `containerStatus` | `state.waiting.reason` | `CrashLoopBackOff`. |
+| `containerStatus` | `state.waiting.reason` | `CrashLoopBackOff`, when it is in backoff. |
 | `containerStatus` | `lastState.terminated.exitCode`, `.reason`, `.signal`, `.message` | How the previous run ended. |
+| `containerStatus` | `lastState.terminated.finishedAt` | How recently, which is what separates a loop from old history. |
 | `containerStatus` | `restartCount` | How many times it has happened. |
+
+The between-attempts case requires **all** of: at least two restarts, a previous run that exited non-zero, and that run having finished within the last ten minutes. Each condition removes a false positive — one restart is not a pattern, a clean exit is not a failure, and a container that failed last week and has run since is not failing now.
 
 ## Why the confidence is what it is
 

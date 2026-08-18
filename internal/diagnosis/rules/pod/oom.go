@@ -37,7 +37,10 @@ func evaluateOOM(_ context.Context, snap *snapshot.Pod) []diagnosis.Diagnosis {
 			continue
 		}
 
-		recovered := containerRunning(container) && field == "lastState.terminated"
+		// Running again after an OOM kill only counts as recovered when the
+		// container is not still cycling through the same failure.
+		recovered := containerRunning(container) && field == "lastState.terminated" &&
+			!isFlapping(container, snap.Now)
 		d := diagnosis.Diagnosis{
 			ID:         IDOOMKilled,
 			Subject:    snap.Ref(),

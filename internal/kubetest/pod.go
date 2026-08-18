@@ -221,6 +221,16 @@ func (c *ContainerBuilder) LastTerminated(reason string, exitCode int32) *Contai
 	return c
 }
 
+// LastTerminatedAgo records a previous termination that finished a given time
+// ago, for the rules that care how recent a failure is.
+func (c *ContainerBuilder) LastTerminatedAgo(reason string, exitCode int32, ago time.Duration) *ContainerBuilder {
+	term := terminated(reason, exitCode)
+	term.FinishedAt = metav1.NewTime(Now.Add(-ago))
+	term.StartedAt = metav1.NewTime(Now.Add(-ago - time.Minute))
+	c.status.LastTerminationState = corev1.ContainerState{Terminated: term}
+	return c
+}
+
 // Restarts sets the container's restart count.
 func (c *ContainerBuilder) Restarts(n int32) *ContainerBuilder {
 	c.status.RestartCount = n

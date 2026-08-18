@@ -136,7 +136,7 @@ func evaluateProvisioning(_ context.Context, snap *snapshot.PVC) []diagnosis.Dia
 	}
 
 	if ev, ok := snap.Events.Latest("ProvisioningFailed"); ok {
-		return []diagnosis.Diagnosis{{
+		d := diagnosis.Diagnosis{
 			ID:         IDProvisioningFailed,
 			Subject:    snap.Ref(),
 			Severity:   diagnosis.SeverityCritical,
@@ -155,7 +155,17 @@ func evaluateProvisioning(_ context.Context, snap *snapshot.PVC) []diagnosis.Dia
 			Suggestions: []diagnosis.Suggestion{{
 				Description: "The provisioner's own logs carry the detail behind this message; KubeWhy only relays what it reported.",
 			}},
-		}}
+		}
+		// A provisioner cannot succeed against a class that does not exist.
+		// Linking the two turns a pair of loose findings into one story.
+		if snap.Class.Exists == snapshot.Missing {
+			if snap.Class.Requested {
+				d.CausedBy = IDStorageClassNotFound
+			} else {
+				d.CausedBy = IDNoDefaultClass
+			}
+		}
+		return []diagnosis.Diagnosis{d}
 	}
 
 	// FailedBinding on a claim with no provisioner means the cluster expected
