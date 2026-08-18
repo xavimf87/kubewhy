@@ -100,8 +100,8 @@ No secrets to configure. `GITHUB_TOKEN` covers tagging and publishing.
 
 Krew is a separate, manual submission, and it happens **after** a release exists, because the manifest needs the archive URLs and their checksums:
 
-1. Copy the version and the `sha256` values from the release's `checksums.txt` into `dist/krew/why.yaml`.
-2. Validate locally: `kubectl krew install --manifest=dist/krew/why.yaml`.
+1. Copy the version and the `sha256` values from the release's `checksums.txt` into `krew/why.yaml`.
+2. Validate locally: `kubectl krew install --manifest=krew/why.yaml`.
 3. Open a pull request against [krew-index](https://github.com/kubernetes-sigs/krew-index).
 
 Until that is merged, the README says Krew support is *planned*, and it should keep saying so.

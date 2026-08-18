@@ -156,7 +156,7 @@ kubectl discovers any executable named `kubectl-why` on your `PATH` and exposes 
 
 ### Krew
 
-Krew support is planned. KubeWhy is **not** in the Krew index yet; the manifest under [`dist/krew/`](dist/krew/) is prepared for the submission once releases are published.
+Krew support is planned. KubeWhy is **not** in the Krew index yet; the manifest under [`krew/`](krew/) is prepared for the submission once releases are published.
 
 ---
 
