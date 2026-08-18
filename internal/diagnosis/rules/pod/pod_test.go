@@ -578,7 +578,7 @@ func TestCrashLoopIsDetectedBetweenRestarts(t *testing.T) {
 	if d.Severity != diagnosis.SeverityCritical {
 		t.Errorf("severity = %s, want critical", d.Severity)
 	}
-	if !strings.Contains(d.Explanation, "4 restarts") {
+	if !strings.Contains(d.Explanation, "restarted \"worker\" 4 times") {
 		t.Errorf("explanation should state how often it restarted: %q", d.Explanation)
 	}
 	if len(Fallback(snap)) != 0 && len(evaluate(snap)) == 0 {

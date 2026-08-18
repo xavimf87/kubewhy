@@ -174,11 +174,12 @@ func severityFor(recovered bool) diagnosis.Severity {
 	return diagnosis.SeverityCritical
 }
 
-// restartSummary describes how often and how recently a container restarted.
+// restartSummary describes how often and how recently a container restarted,
+// phrased to complete "Kubernetes has restarted X ...".
 func restartSummary(c snapshot.Container, now time.Time) string {
-	out := fmt.Sprintf("%d restarts", c.Restarts())
+	out := format.Count(int(c.Restarts()), "time", "times")
 	if last := c.LastTerminated(); last != nil && !last.FinishedAt.IsZero() {
-		out += fmt.Sprintf(", most recent %s ago", format.Duration(now.Sub(last.FinishedAt.Time)))
+		out += fmt.Sprintf(", most recently %s ago", format.Duration(now.Sub(last.FinishedAt.Time)))
 	}
 	return out
 }

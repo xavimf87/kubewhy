@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"golang.org/x/term"
 )
 
 // Style holds the presentation choices for the text renderer.
@@ -19,29 +21,17 @@ type Style struct {
 	Width   int
 }
 
-// DetectStyle chooses colours, symbols and width from the environment, the
-// way a well-behaved CLI is expected to: no colour when the output is piped,
-// no colour when NO_COLOR is set, ASCII when the locale is not UTF-8.
-func DetectStyle(w io.Writer, forceNoColor bool) Style {
-	tty := isTerminal(w)
-	style := Style{
-		Color:   tty && !forceNoColor && os.Getenv("NO_COLOR") == "",
+// DetectStyle chooses colours, symbols and width for a writer.
+//
+// The choices follow what users already expect from other CLIs, so that
+// KubeWhy behaves the same way in a terminal, in a pipe, in CI and on Windows
+// without anyone having to configure it.
+func DetectStyle(w io.Writer, mode ColorMode) Style {
+	return Style{
+		Color:   useColor(w, mode),
 		Unicode: supportsUnicode(),
-		Width:   terminalWidth(),
+		Width:   terminalWidth(w),
 	}
-	return style
-}
-
-func isTerminal(w io.Writer) bool {
-	f, ok := w.(*os.File)
-	if !ok {
-		return false
-	}
-	info, err := f.Stat()
-	if err != nil {
-		return false
-	}
-	return info.Mode()&os.ModeCharDevice != 0
 }
 
 func supportsUnicode() bool {
@@ -60,24 +50,26 @@ func supportsUnicode() bool {
 	return os.Getenv("WT_SESSION") != "" || os.Getenv("TERM_PROGRAM") != ""
 }
 
-func terminalWidth() int {
+// terminalWidth returns the width to wrap at: what the terminal reports, what
+// COLUMNS says, or a conservative default. It is capped because long lines are
+// hard to read however wide the window is.
+func terminalWidth(w io.Writer) int {
 	if v := os.Getenv("COLUMNS"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 40 {
-			return min(n, 100)
+			return min(n, maxWidth)
+		}
+	}
+	if f, ok := w.(*os.File); ok {
+		if width, _, err := term.GetSize(int(f.Fd())); err == nil && width > 40 {
+			return min(width, maxWidth)
 		}
 	}
 	return 80
 }
 
-// ANSI escape sequences, applied only when colour is enabled.
-const (
-	ansiReset  = "\033[0m"
-	ansiBold   = "\033[1m"
-	ansiDim    = "\033[2m"
-	ansiRed    = "\033[31m"
-	ansiGreen  = "\033[32m"
-	ansiYellow = "\033[33m"
-)
+// maxWidth caps the wrapping width; prose stops being readable well before a
+// modern terminal runs out of columns.
+const maxWidth = 100
 
 func (s Style) paint(code, text string) string {
 	if !s.Color || text == "" {
@@ -85,6 +77,9 @@ func (s Style) paint(code, text string) string {
 	}
 	return code + text + ansiReset
 }
+
+// key colours a field name, which should recede behind its value.
+func (s Style) key(text string) string { return s.paint(ansiDim, text) }
 
 func (s Style) bold(text string) string   { return s.paint(ansiBold, text) }
 func (s Style) dim(text string) string    { return s.paint(ansiDim, text) }

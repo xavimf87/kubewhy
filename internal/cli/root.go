@@ -26,6 +26,7 @@ type options struct {
 	context    string
 	namespace  string
 	output     string
+	color      string
 	noColor    bool
 	verbose    bool
 	timeout    time.Duration
@@ -110,7 +111,8 @@ commands inside containers, and never reads Secret contents.`),
 	flags.StringVar(&opts.context, "context", "", "name of the kubeconfig context to use")
 	flags.StringVarP(&opts.namespace, "namespace", "n", "", "namespace of the resource (defaults to the context's namespace)")
 	flags.StringVarP(&opts.output, "output", "o", "text", "output format: text or json")
-	flags.BoolVar(&opts.noColor, "no-color", false, "disable coloured output")
+	flags.StringVar(&opts.color, "color", "auto", "when to colour the output: auto, always or never")
+	flags.BoolVar(&opts.noColor, "no-color", false, "disable coloured output (same as --color never)")
 	flags.BoolVarP(&opts.verbose, "verbose", "v", false, "show every piece of evidence and what KubeWhy inspected")
 	flags.DurationVar(&opts.timeout, "timeout", 15*time.Second, "maximum time to wait for the Kubernetes API")
 
@@ -156,6 +158,9 @@ func (o *options) run(ctx context.Context, args []string) error {
 	if o.output != "text" && o.output != "json" {
 		return fmt.Errorf("unknown output format %q: use text or json", o.output)
 	}
+	if _, err := o.colorMode(); err != nil {
+		return err
+	}
 
 	kind, err := kube.ResolveKind(args[0])
 	if err != nil {
@@ -188,10 +193,23 @@ func (o *options) render(report *diagnosis.Report) error {
 	if o.output == "json" {
 		return output.JSON(o.stdout, report)
 	}
+	mode, err := o.colorMode()
+	if err != nil {
+		return err
+	}
 	return output.Text(o.stdout, report, output.TextOptions{
-		Style:   output.DetectStyle(o.stdout, o.noColor),
+		Style:   output.DetectStyle(o.stdout, mode),
 		Verbose: o.verbose,
 	})
+}
+
+// colorMode resolves the two flags that control colour. --no-color is kept as
+// the familiar spelling of --color=never.
+func (o *options) colorMode() (output.ColorMode, error) {
+	if o.noColor {
+		return output.ColorNever, nil
+	}
+	return output.ParseColorMode(o.color)
 }
 
 func completeArgs(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {

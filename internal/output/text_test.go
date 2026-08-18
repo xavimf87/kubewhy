@@ -7,6 +7,7 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -67,8 +68,13 @@ func unreadyBackendSnap(name string) *snapshot.Pod {
 	return snap
 }
 
-func TestTextGolden(t *testing.T) {
-	tests := []struct {
+// goldenCases returns the reports the golden files are generated from, so the
+// colour tests exercise exactly the same output.
+func goldenCases() []struct {
+	name   string
+	report func(t *testing.T) *diagnosis.Report
+} {
+	return []struct {
 		name   string
 		report func(t *testing.T) *diagnosis.Report
 	}{
@@ -179,8 +185,21 @@ func TestTextGolden(t *testing.T) {
 			},
 		},
 	}
+}
 
-	for _, tt := range tests {
+func goldenReport(t *testing.T, name string) *diagnosis.Report {
+	t.Helper()
+	for _, tt := range goldenCases() {
+		if tt.name == name {
+			return tt.report(t)
+		}
+	}
+	t.Fatalf("no golden case named %q", name)
+	return nil
+}
+
+func TestTextGolden(t *testing.T) {
+	for _, tt := range goldenCases() {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
 			if err := output.Text(&buf, tt.report(t), output.TextOptions{Style: plainStyle}); err != nil {
@@ -285,5 +304,56 @@ func compareGolden(t *testing.T, name, got string) {
 	}
 	if got != string(want) {
 		t.Errorf("output does not match %s\n--- got ---\n%s\n--- want ---\n%s", path, got, want)
+	}
+}
+
+// ansiRe matches every escape sequence the renderer can emit.
+var ansiRe = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
+// Colour is decoration. Stripping it must give back exactly the plain output,
+// which is what keeps piped and CI logs faithful to what a terminal shows.
+func TestColourChangesNothingButColour(t *testing.T) {
+	for _, name := range []string{"pod_oom", "pod_healthy", "pod_unschedulable", "service_no_ready_endpoints", "ingress_broken_backend", "pvc_storageclass_missing"} {
+		t.Run(name, func(t *testing.T) {
+			report := goldenReport(t, name)
+
+			var plain, coloured bytes.Buffer
+			if err := output.Text(&plain, report, output.TextOptions{Style: plainStyle}); err != nil {
+				t.Fatalf("plain render: %v", err)
+			}
+			colourStyle := plainStyle
+			colourStyle.Color = true
+			if err := output.Text(&coloured, goldenReport(t, name), output.TextOptions{Style: colourStyle}); err != nil {
+				t.Fatalf("coloured render: %v", err)
+			}
+
+			if !strings.Contains(coloured.String(), "\x1b[") {
+				t.Fatal("the coloured render emitted no escape sequences at all")
+			}
+			if got := ansiRe.ReplaceAllString(coloured.String(), ""); got != plain.String() {
+				t.Errorf("stripping colour did not give back the plain output\n--- got ---\n%s\n--- want ---\n%s", got, plain.String())
+			}
+		})
+	}
+}
+
+// Every escape sequence must be closed, or the colour bleeds into the shell
+// prompt after the command finishes.
+func TestEveryColourIsReset(t *testing.T) {
+	colourStyle := plainStyle
+	colourStyle.Color = true
+	var buf bytes.Buffer
+	if err := output.Text(&buf, oomReport(t), output.TextOptions{Style: colourStyle}); err != nil {
+		t.Fatalf("Text() error = %v", err)
+	}
+	for i, line := range strings.Split(buf.String(), "\n") {
+		opens := strings.Count(line, "\x1b[") - strings.Count(line, "\x1b[0m")
+		resets := strings.Count(line, "\x1b[0m")
+		if opens > 0 && resets == 0 {
+			t.Errorf("line %d opens colour and never resets it: %q", i+1, line)
+		}
+	}
+	if strings.HasSuffix(strings.TrimRight(buf.String(), "\n"), "\x1b[") {
+		t.Error("the output must not end mid-sequence")
 	}
 }

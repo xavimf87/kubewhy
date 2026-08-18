@@ -162,9 +162,28 @@ kubectl why pod api-7b89d8c9-xfd2 --verbose
 | `--kubeconfig` | Path to the kubeconfig file. |
 | `-o`, `--output` | `text` (default) or `json`. |
 | `--verbose` | Show every piece of evidence, the rule behind each finding, and the queries KubeWhy made. |
-| `--no-color` | Disable colour. Colour is also disabled automatically when the output is not a terminal, and when `NO_COLOR` is set. |
+| `--color` | `auto` (default), `always` or `never`. See below. |
+| `--no-color` | The familiar spelling of `--color never`. |
 | `--timeout` | Maximum time to wait for the Kubernetes API. Default `15s`. |
 | `-V`, `--version` | Print version information. |
+
+### Colour
+
+Output is coloured the way you would expect from any other CLI, and the rules are the ones the ecosystem already agreed on:
+
+| Situation | Result |
+| --- | --- |
+| Writing to a terminal | Coloured |
+| Piped or redirected | Plain, so logs and `grep` stay clean |
+| `--color always` | Coloured anyway — for `less -R` and CI logs that render ANSI |
+| `NO_COLOR` set ([no-color.org](https://no-color.org)) | Plain, unless you passed `--color always` |
+| `CLICOLOR_FORCE` set | Coloured, even through a pipe |
+| `TERM=dumb` | Plain |
+| Windows console | Coloured, with virtual terminal processing enabled automatically; plain on consoles too old to support it |
+
+Only the original sixteen ANSI colours are used, so KubeWhy renders correctly in every terminal, multiplexer and CI log viewer, and it follows your own colour theme instead of overriding it.
+
+**Colour is never the only signal.** Severity is carried by the glyph as well as the colour (`✓`, `!`, `✗`, and `[ok]`, `[!]`, `[x]` where Unicode is unavailable), and stripping the escape sequences gives back exactly the plain output — there is a test that asserts it.
 
 Two helper commands:
 

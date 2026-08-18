@@ -90,7 +90,7 @@ func (r *textRenderer) headline(report *diagnosis.Report) {
 // diagnosis renders one finding. The first critical finding is presented as
 // the root cause; later ones are additional or consequences of it.
 func (r *textRenderer) diagnosis(d diagnosis.Diagnosis, first bool, shown map[string]bool) {
-	r.line(r.style.bold(r.heading(d, first, shown)))
+	r.line(r.style.heading(r.heading(d, first, shown), tone(d.Severity)))
 
 	summary := d.Summary
 	if d.Aggregate != nil && d.Aggregate.Count > 1 {
@@ -130,7 +130,7 @@ func (r *textRenderer) diagnosis(d diagnosis.Diagnosis, first bool, shown map[st
 			}
 			r.paragraph(suggestion.Description, "    ")
 			for _, cmd := range suggestion.Commands {
-				r.line("      " + r.style.dim(cmd))
+				r.line("      " + r.style.command(cmd))
 			}
 		}
 	}
@@ -139,7 +139,8 @@ func (r *textRenderer) diagnosis(d diagnosis.Diagnosis, first bool, shown map[st
 		return
 	}
 	r.blank()
-	r.line("  " + r.style.dim(fmt.Sprintf("rule %s, confidence %s, severity %s", d.ID, d.Confidence, d.Severity)))
+	r.line("  " + r.style.dim("rule ") + r.style.ruleID(d.ID) +
+		r.style.dim(fmt.Sprintf(", confidence %s, severity %s", d.Confidence, d.Severity)))
 }
 
 func (r *textRenderer) heading(d diagnosis.Diagnosis, first bool, shown map[string]bool) string {
@@ -178,9 +179,9 @@ func (r *textRenderer) evidence(items []diagnosis.Evidence) {
 		padding := strings.Repeat(" ", width-utf8.RuneCountInString(label))
 		switch {
 		case e.Value != "":
-			r.line("    " + r.style.dim(label) + padding + "  " + e.Value)
+			r.line("    " + r.style.key(label) + padding + "  " + r.style.value(e.Value))
 		default:
-			r.line("    " + r.style.dim(label))
+			r.line("    " + r.style.key(label))
 		}
 		if e.Message != "" {
 			for _, l := range wrap(e.Message, r.style.Width-6) {
@@ -222,9 +223,9 @@ func (r *textRenderer) section(s diagnosis.Section) {
 		}
 	}
 	for _, item := range s.Items {
-		line := "  " + item.Key + pad(keyWidth-utf8.RuneCountInString(item.Key)) + "  " + item.Value
+		line := "  " + item.Key + pad(keyWidth-utf8.RuneCountInString(item.Key)) + "  " + r.style.value(item.Value)
 		if item.Note != "" {
-			line += pad(valueWidth-utf8.RuneCountInString(item.Value)) + "  " + r.style.dim(item.Note)
+			line += pad(valueWidth-utf8.RuneCountInString(item.Value)) + "  " + r.style.note(item.Note)
 		}
 		r.line(line)
 	}
@@ -269,6 +270,18 @@ func (r *textRenderer) bullet(text, indent string) {
 }
 
 // paragraph writes wrapped text with a fixed indent.
+// tone maps a severity onto how loudly the renderer should present it.
+func tone(severity diagnosis.Severity) severityTone {
+	switch severity {
+	case diagnosis.SeverityCritical:
+		return toneCritical
+	case diagnosis.SeverityWarning:
+		return toneWarning
+	default:
+		return toneInfo
+	}
+}
+
 func (r *textRenderer) paragraph(text, indent string) {
 	for _, l := range wrap(text, r.style.Width-len(indent)) {
 		r.line(indent + l)
