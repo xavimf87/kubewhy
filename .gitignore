@@ -1,0 +1,17 @@
+# Build output
+/bin/
+# GoReleaser writes here; the Krew manifest lives here on purpose.
+/dist/*
+!/dist/krew/
+kubectl-why
+kubectl-why.exe
+
+# Test and tooling artifacts
+*.test
+*.out
+coverage.txt
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/

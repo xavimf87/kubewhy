@@ -1,0 +1,39 @@
+name: E2E
+
+# End-to-end scenarios need a real cluster, so they do not gate every pull
+# request. They run on main, on demand, and on a schedule that catches drift
+# in Kubernetes behaviour.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  kind:
+    name: Scenarios on kind
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build the plugin
+        run: make build
+
+      - name: Create a kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: kubewhy-e2e
+
+      - name: Run the scenarios
+        env:
+          KUBEWHY_E2E_YES: "1"
+        run: test/e2e/run.sh

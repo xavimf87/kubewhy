@@ -1,0 +1,20 @@
+# The init container fails, so the regular container never starts.
+# Expected: POD_INIT_CONTAINER_FAILED, not a vague "Pod is not ready".
+apiVersion: v1
+kind: Pod
+metadata:
+  name: init-container-demo
+  labels: { app: kubewhy-demo, case: init-container }
+spec:
+  initContainers:
+    - name: database-migration
+      image: busybox:1.36
+      command: ["sh", "-c", "echo 'migrating'; sleep 2; echo 'migration failed'; exit 1"]
+      resources:
+        requests: { cpu: 10m, memory: 16Mi }
+  containers:
+    - name: app
+      image: busybox:1.36
+      command: ["sh", "-c", "sleep 3600"]
+      resources:
+        requests: { cpu: 10m, memory: 16Mi }

@@ -1,0 +1,21 @@
+! Pod/api-123 could not be fully analysed
+
+Status
+  Phase     Running
+  Ready     1/1 containers
+  Restarts  0
+  Age       1h
+  Node      node-1
+
+Containers
+  api  Ready
+
+! Diagnosis is incomplete
+
+  KubeWhy could not read nodes in this cluster.
+
+  Required for
+    evaluating node conditions
+
+  Kubernetes returned
+    nodes "node-1" is forbidden: User "dev" cannot get resource "nodes"

@@ -1,0 +1,42 @@
+✗ Pod/api-123 is unhealthy
+
+ROOT CAUSE
+  The scheduler found no node that can run this Pod
+
+  The scheduler evaluated 3 node(s) and rejected all of them. These are the
+  reasons it reported, unchanged.
+
+  Evidence
+    nodesEvaluated   3
+    message
+      0/3 nodes are available: 2 Insufficient memory, 1 node(s) had untolerated
+      taint {gpu: true}. preemption: 0/3 nodes are available: 3 No preemption
+      victims found for incoming pod.
+    reason           2 Insufficient memory
+    reason           1 node(s) had untolerated taint {gpu: true}
+    requests.cpu     1
+    requests.memory  8Gi
+
+  Possible causes
+    • no node has enough free capacity for the Pod's requests
+    • the Pod's requests are larger than any single node can offer
+    • the nodes carry taints the Pod does not tolerate
+
+  Suggested actions
+    Compare the Pod's requests with the capacity the nodes have left.
+      kubectl describe nodes | grep -A5 'Allocated resources'
+
+    Review the taints on the candidate nodes and the tolerations on the Pod.
+      kubectl get nodes -o custom-columns=NAME:.metadata.name,TAINTS:.spec.taints
+
+Status
+  Phase     Pending
+  Ready     0/1 containers
+  Restarts  0
+  Age       12m
+
+Containers
+  api  not started
+
+Conditions
+  PodScheduled  False  Unschedulable

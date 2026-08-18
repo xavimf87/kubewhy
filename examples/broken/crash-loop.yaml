@@ -1,0 +1,14 @@
+# Exits with an error as soon as it starts, forever.
+# Expected: POD_CRASH_LOOP, with the exit code reported and no cause invented.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: crash-loop-demo
+  labels: { app: kubewhy-demo, case: crash-loop }
+spec:
+  containers:
+    - name: worker
+      image: busybox:1.36
+      command: ["sh", "-c", "echo 'starting up'; sleep 2; echo 'giving up'; exit 1"]
+      resources:
+        requests: { cpu: 10m, memory: 16Mi }

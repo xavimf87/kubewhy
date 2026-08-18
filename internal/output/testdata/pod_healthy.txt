@@ -1,0 +1,14 @@
+✓ Pod/api-123 appears healthy
+
+Status
+  Phase     Running
+  Ready     2/2 containers
+  Restarts  0
+  Age       1h
+  Node      node-1
+
+Containers
+  api     Ready
+  worker  Ready
+
+No obvious Kubernetes-level issue detected.

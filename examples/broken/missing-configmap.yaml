@@ -1,0 +1,18 @@
+# Mounts a ConfigMap that was never created.
+# Expected: POD_MISSING_CONFIGMAP as the root cause, and the container
+# configuration error reported as its consequence.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: missing-configmap-demo
+  labels: { app: kubewhy-demo, case: missing-configmap }
+spec:
+  containers:
+    - name: app
+      image: busybox:1.36
+      command: ["sh", "-c", "sleep 3600"]
+      envFrom:
+        - configMapRef:
+            name: kubewhy-config-that-does-not-exist
+      resources:
+        requests: { cpu: 10m, memory: 16Mi }

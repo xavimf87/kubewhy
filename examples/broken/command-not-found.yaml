@@ -1,0 +1,14 @@
+# The entrypoint does not exist in the image, so the shell exits with 127.
+# Expected: POD_CRASH_LOOP, naming a command that is not in the image.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: command-not-found-demo
+  labels: { app: kubewhy-demo, case: command-not-found }
+spec:
+  containers:
+    - name: app
+      image: busybox:1.36
+      command: ["sh", "-c", "exec /usr/local/bin/server --port 8080"]
+      resources:
+        requests: { cpu: 10m, memory: 16Mi }

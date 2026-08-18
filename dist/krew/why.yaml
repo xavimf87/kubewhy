@@ -1,0 +1,99 @@
+# Krew plugin manifest for KubeWhy.
+#
+# NOT SUBMITTED YET. KubeWhy is not in the Krew index; this file is the
+# template for that submission once signed release archives exist.
+#
+# Before submitting to https://github.com/kubernetes-sigs/krew-index:
+#   1. Publish a release so the archive URLs below resolve.
+#   2. Replace every sha256 with the value from the release's checksums.txt.
+#   3. Replace the version with the released tag.
+#   4. Validate with:  kubectl krew install --manifest=dist/krew/why.yaml
+apiVersion: krew.googlecontainertools.github.com/v1alpha2
+kind: Plugin
+metadata:
+  name: why
+spec:
+  version: v0.0.0
+  homepage: https://github.com/xavimf87/kubewhy
+  shortDescription: Explain why a Kubernetes resource is not working
+  description: |
+    KubeWhy correlates the status, conditions, events and related objects of a
+    Kubernetes resource and explains what they say about it, instead of leaving
+    you to join `get`, `describe` and `get events` in your head.
+
+      kubectl why pod api-7b89d8c9-xfd2
+
+    It is read-only by design: it never modifies, restarts or deletes anything,
+    never executes commands inside containers, and never reads Secret contents.
+    It uses your existing kubeconfig, requires no cluster-admin, installs
+    nothing into the cluster, and makes no network request other than to your
+    API server.
+
+    Every finding carries a stable identifier, a severity and a confidence, and
+    KubeWhy says when the evidence does not identify a cause rather than
+    guessing one. Machine-readable output is available with `-o json`.
+  caveats: |
+    KubeWhy diagnoses Pods, and support for Services, Deployments, Ingresses
+    and PersistentVolumeClaims is in progress. Run `kubectl why rules` to see
+    every diagnosis it can produce.
+  platforms:
+    - selector:
+        matchLabels:
+          os: linux
+          arch: amd64
+      uri: https://github.com/xavimf87/kubewhy/releases/download/v0.0.0/kubewhy_0.0.0_linux_amd64.tar.gz
+      sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+      bin: kubectl-why
+      files:
+        - from: kubectl-why
+          to: .
+        - from: LICENSE
+          to: .
+    - selector:
+        matchLabels:
+          os: linux
+          arch: arm64
+      uri: https://github.com/xavimf87/kubewhy/releases/download/v0.0.0/kubewhy_0.0.0_linux_arm64.tar.gz
+      sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+      bin: kubectl-why
+      files:
+        - from: kubectl-why
+          to: .
+        - from: LICENSE
+          to: .
+    - selector:
+        matchLabels:
+          os: darwin
+          arch: amd64
+      uri: https://github.com/xavimf87/kubewhy/releases/download/v0.0.0/kubewhy_0.0.0_darwin_amd64.tar.gz
+      sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+      bin: kubectl-why
+      files:
+        - from: kubectl-why
+          to: .
+        - from: LICENSE
+          to: .
+    - selector:
+        matchLabels:
+          os: darwin
+          arch: arm64
+      uri: https://github.com/xavimf87/kubewhy/releases/download/v0.0.0/kubewhy_0.0.0_darwin_arm64.tar.gz
+      sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+      bin: kubectl-why
+      files:
+        - from: kubectl-why
+          to: .
+        - from: LICENSE
+          to: .
+    - selector:
+        matchLabels:
+          os: windows
+          arch: amd64
+      uri: https://github.com/xavimf87/kubewhy/releases/download/v0.0.0/kubewhy_0.0.0_windows_amd64.zip
+      sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+      bin: kubectl-why.exe
+      files:
+        - from: kubectl-why.exe
+          to: .
+        - from: LICENSE
+          to: .

@@ -1,0 +1,39 @@
+# Linters KubeWhy runs. The set is deliberately small: correctness and real
+# bugs, not style arguments. gofmt and go vet already cover formatting and the
+# common mistakes.
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: none
+  enable:
+    - errcheck      # unchecked errors
+    - govet         # what `go vet` reports
+    - ineffassign   # assignments that are never used
+    - staticcheck   # correctness and simplification
+    - unused        # dead code
+    - misspell      # typos in comments and strings
+    - bodyclose     # leaked HTTP response bodies
+
+  settings:
+    misspell:
+      locale: UK
+    staticcheck:
+      checks:
+        - all
+        - -ST1000   # package comment style is enforced by review, not a linter
+
+  exclusions:
+    generated: lax
+    rules:
+      # Test helpers legitimately ignore errors that a test would otherwise
+      # report twice.
+      - path: _test\.go
+        linters:
+          - errcheck
+
+formatters:
+  enable:
+    - gofmt

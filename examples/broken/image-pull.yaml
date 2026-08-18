@@ -1,0 +1,13 @@
+# The image reference does not exist. Expected: POD_IMAGE_PULL_FAILED,
+# classified from whatever the registry answers.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: image-pull-demo
+  labels: { app: kubewhy-demo, case: image-pull }
+spec:
+  containers:
+    - name: app
+      image: registry.k8s.io/kubewhy-does-not-exist:v0.0.0
+      resources:
+        requests: { cpu: 10m, memory: 16Mi }

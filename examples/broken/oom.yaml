@@ -1,0 +1,25 @@
+# Fills memory-backed storage until the container passes its 32Mi limit and
+# the kernel kills it. Expected: POD_OOM_KILLED.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: oom-demo
+  labels: { app: kubewhy-demo, case: oom }
+spec:
+  containers:
+    - name: hungry
+      image: busybox:1.36
+      command:
+        - sh
+        - -c
+        - "dd if=/dev/zero of=/dev/shm/fill bs=1M count=256; sleep 3600"
+      resources:
+        requests: { cpu: 10m, memory: 16Mi }
+        limits: { cpu: 100m, memory: 32Mi }
+      volumeMounts:
+        - name: memory
+          mountPath: /dev/shm
+  volumes:
+    - name: memory
+      emptyDir:
+        medium: Memory

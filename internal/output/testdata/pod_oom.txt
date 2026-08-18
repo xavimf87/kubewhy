@@ -1,0 +1,46 @@
+✗ Pod/checkout-7c8cc8679-j9qd8 is unhealthy
+
+ROOT CAUSE
+  Container "checkout" was terminated for exceeding its memory limit
+
+  Kubernetes reports that "checkout" was killed with reason OOMKilled. The
+  kernel terminates a container when the memory it uses reaches the limit
+  configured for it.
+
+  Evidence
+    state.waiting.reason           CrashLoopBackOff
+      back-off 5m0s restarting failed container
+    restartCount                   8
+    lastState.terminated.exitCode  137
+    lastState.terminated.reason    OOMKilled
+    resources.requests.memory      256Mi
+    resources.limits.memory        512Mi
+
+  Possible causes
+    • the application uses more memory than it was allocated
+    • the workload's memory requirements grew beyond the configured limit
+    • the configured memory limit is too low for this workload
+
+  Suggested action
+    Review the container's memory limit and the application's memory usage to
+    decide which of the two should change.
+      kubectl logs checkout-7c8cc8679-j9qd8 -n prod -c checkout --previous
+
+Status
+  Phase     Running
+  Ready     0/1 containers
+  Restarts  8
+  Age       1h
+  Node      node-3
+
+Containers
+  checkout  Waiting (CrashLoopBackOff)  8 restarts
+
+Conditions
+  Initialized  True
+  Ready        False  ContainersNotReady
+
+Owned by
+  Deployment/checkout
+  └─ ReplicaSet/checkout-7c8cc8679
+     └─ Pod/checkout-7c8cc8679-j9qd8

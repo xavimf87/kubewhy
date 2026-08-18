@@ -1,0 +1,43 @@
+name: Bug report
+description: KubeWhy crashed, hung, or behaved incorrectly as a program.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: The exact command, and the cluster state it ran against.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Output of `kubectl why version`, plus your Kubernetes version and distribution.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I ran the command again with `--verbose` and included anything relevant.
+        - label: The output I pasted contains no credentials or Secret data.
+          required: true

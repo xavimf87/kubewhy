@@ -1,0 +1,151 @@
+package pod
+
+import (
+	"fmt"
+	"strings"
+
+	corev1 "k8s.io/api/core/v1"
+
+	"github.com/xavimf87/kubewhy/internal/diagnosis"
+	"github.com/xavimf87/kubewhy/internal/snapshot"
+)
+
+// containerEvidence returns the evidence common to container-level findings.
+func containerEvidence(c snapshot.Container) []diagnosis.Evidence {
+	var out []diagnosis.Evidence
+	if w := c.Waiting(); w != nil && w.Reason != "" {
+		out = append(out, diagnosis.Evidence{
+			Source:  "containerStatus",
+			Field:   "state.waiting.reason",
+			Value:   w.Reason,
+			Message: strings.TrimSpace(w.Message),
+		})
+	}
+	if c.Restarts() > 0 {
+		out = append(out, diagnosis.Evidence{
+			Source: "containerStatus",
+			Field:  "restartCount",
+			Value:  fmt.Sprintf("%d", c.Restarts()),
+		})
+	}
+	return out
+}
+
+// terminationEvidence describes how a container ended.
+func terminationEvidence(field string, t *corev1.ContainerStateTerminated) []diagnosis.Evidence {
+	if t == nil {
+		return nil
+	}
+	out := []diagnosis.Evidence{{
+		Source: "containerStatus",
+		Field:  field + ".exitCode",
+		Value:  fmt.Sprintf("%d", t.ExitCode),
+	}}
+	if t.Reason != "" {
+		out = append(out, diagnosis.Evidence{
+			Source: "containerStatus",
+			Field:  field + ".reason",
+			Value:  t.Reason,
+		})
+	}
+	if t.Signal != 0 {
+		out = append(out, diagnosis.Evidence{
+			Source: "containerStatus",
+			Field:  field + ".signal",
+			Value:  fmt.Sprintf("%d", t.Signal),
+		})
+	}
+	if msg := strings.TrimSpace(t.Message); msg != "" {
+		out = append(out, diagnosis.Evidence{
+			Source:  "containerStatus",
+			Field:   field + ".message",
+			Message: truncate(msg, 300),
+		})
+	}
+	return out
+}
+
+// memoryEvidence reports the container's configured memory request and limit.
+func memoryEvidence(c snapshot.Container) []diagnosis.Evidence {
+	var out []diagnosis.Evidence
+	if c.Spec == nil {
+		return out
+	}
+	if q, ok := c.Spec.Resources.Requests[corev1.ResourceMemory]; ok {
+		out = append(out, diagnosis.Evidence{
+			Source: "podSpec",
+			Field:  "resources.requests.memory",
+			Value:  q.String(),
+		})
+	}
+	if q, ok := c.Spec.Resources.Limits[corev1.ResourceMemory]; ok {
+		out = append(out, diagnosis.Evidence{
+			Source: "podSpec",
+			Field:  "resources.limits.memory",
+			Value:  q.String(),
+		})
+	}
+	return out
+}
+
+// hasMemoryLimit reports whether the container declares a memory limit.
+func hasMemoryLimit(c snapshot.Container) bool {
+	if c.Spec == nil {
+		return false
+	}
+	_, ok := c.Spec.Resources.Limits[corev1.ResourceMemory]
+	return ok
+}
+
+// logsCommand builds the read-only command that shows a container's logs.
+func logsCommand(snap *snapshot.Pod, container string, previous bool) string {
+	cmd := fmt.Sprintf("kubectl logs %s", snap.Pod.Name)
+	if snap.Pod.Namespace != "" {
+		cmd += " -n " + snap.Pod.Namespace
+	}
+	if container != "" {
+		cmd += " -c " + container
+	}
+	if previous {
+		cmd += " --previous"
+	}
+	return cmd
+}
+
+// eventEvidence turns a Kubernetes event into evidence, keeping its verbatim
+// message so the user sees what the cluster actually reported.
+func eventEvidence(ev snapshot.Event) diagnosis.Evidence {
+	value := ev.Reason
+	if ev.Count > 1 {
+		value = fmt.Sprintf("%s (x%d)", ev.Reason, ev.Count)
+	}
+	return diagnosis.Evidence{
+		Source:  "event",
+		Field:   "reason",
+		Value:   value,
+		Message: truncate(ev.Message, 300),
+	}
+}
+
+// truncate shortens long Kubernetes messages so terminal output stays usable.
+func truncate(s string, limit int) string {
+	s = strings.TrimSpace(strings.ReplaceAll(s, "\n", " "))
+	if len(s) <= limit {
+		return s
+	}
+	return strings.TrimSpace(s[:limit]) + "…"
+}
+
+// containerRunning reports whether the container is currently running.
+func containerRunning(c snapshot.Container) bool {
+	return c.Status != nil && c.Status.State.Running != nil
+}
+
+// severityFor returns critical when the Pod is currently affected and warning
+// when the container has already recovered from the failure.
+func severityFor(recovered bool) diagnosis.Severity {
+	if recovered {
+		return diagnosis.SeverityWarning
+	}
+	return diagnosis.SeverityCritical
+}

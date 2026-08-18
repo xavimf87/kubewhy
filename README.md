@@ -1,0 +1,337 @@
+# KubeWhy
+
+**Stop describing Kubernetes problems. Start explaining them.**
+
+KubeWhy is a read-only `kubectl` plugin that tells you *why* a Kubernetes resource is not working.
+
+```console
+$ kubectl why pod checkout-7c8cc8679-j9qd8 -n prod
+
+✗ Pod/checkout-7c8cc8679-j9qd8 is unhealthy
+
+ROOT CAUSE
+  Container "checkout" was terminated for exceeding its memory limit
+
+  Kubernetes reports that "checkout" was killed with reason OOMKilled. The
+  kernel terminates a container when the memory it uses reaches the limit
+  configured for it.
+
+  Evidence
+    state.waiting.reason           CrashLoopBackOff
+      back-off 5m0s restarting failed container
+    restartCount                   8
+    lastState.terminated.exitCode  137
+    lastState.terminated.reason    OOMKilled
+    resources.requests.memory      256Mi
+    resources.limits.memory        512Mi
+
+  Possible causes
+    • the application uses more memory than it was allocated
+    • the workload's memory requirements grew beyond the configured limit
+    • the configured memory limit is too low for this workload
+
+  Suggested action
+    Review the container's memory limit and the application's memory usage to
+    decide which of the two should change.
+
+      kubectl logs checkout-7c8cc8679-j9qd8 -n prod -c checkout --previous
+
+Status
+  Phase     Running
+  Ready     0/1 containers
+  Restarts  8
+  Age       1h
+  Node      node-3
+
+Containers
+  checkout  Waiting (CrashLoopBackOff)  8 restarts
+
+Owned by
+  Deployment/checkout
+  └─ ReplicaSet/checkout-7c8cc8679
+     └─ Pod/checkout-7c8cc8679-j9qd8
+```
+
+That is one command instead of `get`, `describe`, `get events`, `get rs`, `get deployment` and a mental join of all of them.
+
+---
+
+## Why KubeWhy?
+
+Kubernetes already tells you everything. It just tells you in six places at once: Pod status, container states, conditions, events, owner references, and the objects around them. Correlating them is a skill, and doing it at 3am under pressure is a chore.
+
+KubeWhy does that correlation and states a conclusion — **or says plainly that the evidence does not support one**:
+
+```text
+Container "worker" is restarting repeatedly
+
+Kubernetes restarted "worker" after each exit and is now backing off between
+attempts. The last run exited with code 1 and reason "Error". Kubernetes does
+not record why the process chose that exit code, so the application's own logs
+are the next place to look.
+```
+
+It will never tell you that your application has a memory leak, because Kubernetes cannot know that.
+
+**What KubeWhy is:** a deterministic troubleshooting CLI.
+**What it is not:** a dashboard, an agent, an operator, an observability platform, or an AI assistant.
+
+---
+
+## Installation
+
+### With `go install`
+
+```bash
+go install github.com/xavimf87/kubewhy/cmd/kubectl-why@latest
+```
+
+Make sure your `GOBIN` (usually `~/go/bin`) is in your `PATH`, then:
+
+```bash
+kubectl why --help
+```
+
+### From source
+
+```bash
+git clone https://github.com/xavimf87/kubewhy
+cd kubewhy
+make build
+mv bin/kubectl-why /usr/local/bin/     # or anywhere on your PATH
+kubectl why --help
+```
+
+kubectl discovers any executable named `kubectl-why` on your `PATH` and exposes it as `kubectl why`. Running the binary directly as `kubectl-why` works exactly the same.
+
+### Krew
+
+Krew support is planned. KubeWhy is **not** in the Krew index yet; the manifest under [`dist/krew/`](dist/krew/) is prepared for the submission once releases are published.
+
+---
+
+## Usage
+
+```bash
+kubectl why RESOURCE NAME [flags]
+```
+
+```bash
+kubectl why pod api-7b89d8c9-xfd2
+kubectl why pod api-7b89d8c9-xfd2 -n production
+kubectl why pod api-7b89d8c9-xfd2 --context prod-cluster
+kubectl why pod api-7b89d8c9-xfd2 -o json
+kubectl why pod api-7b89d8c9-xfd2 --verbose
+```
+
+| Flag | Description |
+| --- | --- |
+| `-n`, `--namespace` | Namespace of the resource. Defaults to the current context's namespace. |
+| `--context` | kubeconfig context to use. |
+| `--kubeconfig` | Path to the kubeconfig file. |
+| `-o`, `--output` | `text` (default) or `json`. |
+| `--verbose` | Show every piece of evidence, the rule behind each finding, and the queries KubeWhy made. |
+| `--no-color` | Disable colour. Colour is also disabled automatically when the output is not a terminal, and when `NO_COLOR` is set. |
+| `--timeout` | Maximum time to wait for the Kubernetes API. Default `15s`. |
+| `-V`, `--version` | Print version information. |
+
+Two helper commands:
+
+```bash
+kubectl why rules      # every rule and the identifiers it can produce
+kubectl why version
+```
+
+---
+
+## Supported resources
+
+| Resource | Aliases | Status |
+| --- | --- | --- |
+| Pod | `pods`, `po` | ✅ Implemented |
+| Service | `services`, `svc` | 🚧 Next milestone |
+| Deployment | `deployments`, `deploy` | 🚧 Next milestone |
+| Ingress | `ingresses`, `ing` | 🚧 Next milestone |
+| PersistentVolumeClaim | `persistentvolumeclaims`, `pvc` | 🚧 Next milestone |
+
+Quality over coverage: a resource appears here only when its diagnoses are worth trusting.
+
+---
+
+## Supported diagnoses
+
+Every finding carries a **stable identifier**, a **severity** and a **confidence**. Run `kubectl why rules` for the live list.
+
+| Identifier | What it detects |
+| --- | --- |
+| `POD_OOM_KILLED` | A container Kubernetes terminated with reason `OOMKilled`, with its memory request and limit. |
+| `POD_CRASH_LOOP` | A container in `CrashLoopBackOff`, with what the last termination does and does not prove. |
+| `POD_INIT_CONTAINER_FAILED` | An init container blocking the Pod from starting. |
+| `POD_CONTAINER_TERMINATED_ERROR` | A container that exited non-zero and will not be restarted. |
+| `POD_EVICTED` | A Pod the kubelet evicted, with the node's reason. |
+| `POD_IMAGE_PULL_FAILED` | An image that cannot be pulled, classified as not-found, unauthorised, rate-limited or unreachable when the registry message says so. |
+| `POD_UNSCHEDULABLE` | The scheduler rejected every node, with its reasons normalised. |
+| `POD_UNSCHEDULABLE_CPU` / `_MEMORY` | Insufficient capacity was the only reason. |
+| `POD_UNTOLERATED_TAINT` | Taints were the only reason. |
+| `POD_UNSCHEDULABLE_NODE_AFFINITY` | Node selector or affinity was the only reason. |
+| `POD_UNSCHEDULABLE_VOLUME` | Volume binding was the only reason. |
+| `POD_SCHEDULING_GATED` | The Pod is held by scheduling gates and was never scheduled — on purpose. |
+| `POD_READINESS_PROBE_FAILED` | A readiness probe failing, with the probe's target and timing. |
+| `POD_LIVENESS_PROBE_FAILED` | A liveness probe failing, which explains restarts without a crash. |
+| `POD_STARTUP_PROBE_FAILED` | A startup probe failing. |
+| `POD_FAILED_MOUNT` | A volume the kubelet could not mount. |
+| `POD_MISSING_CONFIGMAP` | A required ConfigMap the API server reports as absent. |
+| `POD_MISSING_SECRET` | A required Secret the API server reports as absent (existence only — never contents). |
+| `POD_CREATE_CONTAINER_CONFIG_ERROR` | A container that cannot be created from its configuration. |
+| `POD_PVC_NOT_FOUND` | A claim the Pod mounts that does not exist. |
+| `POD_PVC_NOT_BOUND` | A claim that has not bound — and, when it uses `WaitForFirstConsumer`, why that is expected rather than broken. |
+| `POD_NODE_NOT_READY` | The Pod's node is not reporting Ready. |
+| `POD_NOT_READY` | The Pod is not ready and **no rule could explain it**. KubeWhy says so instead of inventing a cause. |
+
+Each rule is documented under [`docs/rules/`](docs/rules/): what it detects, the evidence it uses, its confidence, and its limitations.
+
+---
+
+## How it works
+
+```text
+CLI
+ │
+ ▼
+resource resolver          pod | svc | deploy | ing | pvc → Kind
+ │
+ ▼
+collectors                 only the API calls the diagnosis can use
+ ├─ the resource
+ ├─ its events
+ ├─ its ownership chain
+ └─ related objects, when a symptom makes them relevant
+ │
+ ▼
+snapshot                   normalized, read-only, no API access below this line
+ │
+ ▼
+rules                      pure functions: snapshot → findings
+ │
+ ▼
+diagnoses                  prioritised, root causes before consequences
+ │
+ ├─ text renderer
+ └─ JSON renderer
+```
+
+Three concepts are kept strictly apart, and that separation is the whole point of the project:
+
+- **Evidence** — a fact read from the Kubernetes API. Never inferred.
+- **Diagnosis** — an interpretation of evidence, qualified by a confidence: `certain`, `likely` or `possible`.
+- **Suggestion** — something a human may want to do. KubeWhy never does it.
+
+More in [`docs/architecture.md`](docs/architecture.md).
+
+---
+
+## Security and privacy
+
+KubeWhy is **read-only by design**.
+
+- It performs only `get` and `list` requests. It never patches, deletes, scales, restarts, executes into containers, port-forwards or creates debug containers.
+- It uses **your existing kubeconfig**: current context, namespace, authentication and exec credential plugins. No account, token or API key of its own.
+- It does **not require cluster-admin**. When a related object cannot be read, the report says which part of the analysis is incomplete and continues with the rest.
+- It **never reads Secret contents**. To check whether a referenced Secret exists, it asks the API server for object metadata only (`PartialObjectMetadata`), so the payload never reaches the process. No Secret client is exposed to collectors or rules.
+- It does **not fetch application logs** (it suggests the `kubectl logs` command instead), and does not collect manifests.
+- It makes **no external network requests**: no telemetry, no analytics, no cloud service, no LLM.
+
+Details and the disclosure process: [`SECURITY.md`](SECURITY.md) and [`docs/security.md`](docs/security.md).
+
+---
+
+## JSON output
+
+`-o json` is meant to be automated against. Rule identifiers and field names are treated as public API.
+
+```console
+$ kubectl why pod checkout-7c8cc8679-j9qd8 -n prod -o json
+```
+
+```json
+{
+  "resource": { "kind": "Pod", "namespace": "prod", "name": "checkout-7c8cc8679-j9qd8" },
+  "status": "unhealthy",
+  "headline": "Pod/checkout-7c8cc8679-j9qd8 is unhealthy",
+  "diagnoses": [
+    {
+      "id": "POD_OOM_KILLED",
+      "subject": { "kind": "Pod", "namespace": "prod", "name": "checkout-7c8cc8679-j9qd8" },
+      "component": "checkout",
+      "severity": "critical",
+      "confidence": "certain",
+      "summary": "Container \"checkout\" was terminated for exceeding its memory limit",
+      "evidence": [
+        { "source": "containerStatus", "field": "lastState.terminated.reason", "value": "OOMKilled" },
+        { "source": "podSpec", "field": "resources.limits.memory", "value": "512Mi" }
+      ],
+      "possibleCauses": ["the application uses more memory than it was allocated"],
+      "suggestions": [
+        {
+          "description": "Review the container's memory limit and the application's memory usage…",
+          "commands": ["kubectl logs checkout-7c8cc8679-j9qd8 -n prod -c checkout --previous"]
+        }
+      ]
+    }
+  ]
+}
+```
+
+Useful in CI:
+
+```bash
+kubectl why pod "$POD" -n "$NS" -o json | jq -r '.diagnoses[].id'
+```
+
+---
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | The resource was analysed and no issue was detected. |
+| `1` | The resource was analysed and at least one issue was found. |
+| `2` | KubeWhy could not run: invalid flags, no kubeconfig, or an API error. |
+| `3` | The requested resource was not found. |
+| `4` | The current user may not read the requested resource. |
+
+A missing permission on a *related* object degrades the report; it does not produce exit code `4`.
+
+---
+
+## Roadmap
+
+**v0.1 — in progress**
+
+- [x] Pod diagnostics, text and JSON output, exit codes, RBAC degradation
+- [ ] Service diagnostics (selector, EndpointSlices, readiness)
+- [ ] Deployment diagnostics (rollouts, aggregated Pod failures)
+- [ ] Ingress diagnostics (Ingress → Service → EndpointSlice → Pod)
+- [ ] PersistentVolumeClaim diagnostics
+- [ ] Release binaries and Krew submission
+
+**Later, deliberately not now**
+
+`kubectl why namespace`, NetworkPolicy and DNS diagnostics, Gateway API, controller-specific Ingress knowledge, service meshes, CRDs, Helm and Argo CD awareness, metrics backends, and any optional AI explanation layer. KubeWhy earns trust by being deterministic and explainable first.
+
+---
+
+## Contributing
+
+Contributions are very welcome, and adding a diagnosis rule is deliberately a small, well-bounded task: one rule, its tests, and one documentation page. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the walkthrough, and [`examples/broken/`](examples/broken/) for manifests that break on purpose so you can reproduce each case on a throwaway cluster.
+
+```bash
+make check     # gofmt, go vet, go test
+make build
+```
+
+---
+
+## License
+
+[Apache License 2.0](LICENSE).

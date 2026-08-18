@@ -1,0 +1,35 @@
+# The claim asks for a storage class that does not exist, so it never binds and
+# the Pod can never be scheduled.
+# Expected: POD_PVC_NOT_BOUND as the root cause, with the scheduling failure
+# reported as its consequence.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kubewhy-data
+  labels: { app: kubewhy-demo, case: pvc }
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: kubewhy-storage-class-that-does-not-exist
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pvc-demo
+  labels: { app: kubewhy-demo, case: pvc }
+spec:
+  containers:
+    - name: app
+      image: busybox:1.36
+      command: ["sh", "-c", "sleep 3600"]
+      volumeMounts:
+        - name: data
+          mountPath: /data
+      resources:
+        requests: { cpu: 10m, memory: 16Mi }
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: kubewhy-data

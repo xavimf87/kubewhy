@@ -1,0 +1,14 @@
+# Requests more CPU than any node in a test cluster can offer.
+# Expected: POD_UNSCHEDULABLE_CPU, with the scheduler's own reasons.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: unschedulable-cpu-demo
+  labels: { app: kubewhy-demo, case: unschedulable-cpu }
+spec:
+  containers:
+    - name: app
+      image: busybox:1.36
+      command: ["sh", "-c", "sleep 3600"]
+      resources:
+        requests: { cpu: "512", memory: 16Mi }

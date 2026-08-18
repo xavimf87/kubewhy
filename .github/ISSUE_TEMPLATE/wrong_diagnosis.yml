@@ -1,0 +1,51 @@
+name: Wrong or unhelpful diagnosis
+description: KubeWhy said something incorrect, misleading, or told you nothing useful.
+labels: ["diagnosis"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        These are the most valuable reports this project can get. KubeWhy's
+        whole premise is that its findings can be trusted, so a wrong one is a
+        serious bug.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What KubeWhy said
+      description: Paste the output. Redact names if you need to, but keep the structure.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What was actually wrong with the resource
+      description: What did you find once you investigated?
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Kubernetes evidence
+      description: |
+        The relevant `kubectl describe` or `kubectl get -o yaml` output, and any
+        events. This is what a new or corrected rule will be built from.
+      render: text
+
+  - type: input
+    id: rule
+    attributes:
+      label: Rule identifier
+      description: The identifier involved, if any (from `--verbose` or `-o json`).
+      placeholder: POD_OOM_KILLED
+
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Output of `kubectl why version`, plus your Kubernetes version and distribution.
+    validations:
+      required: true

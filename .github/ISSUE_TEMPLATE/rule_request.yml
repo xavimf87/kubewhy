@@ -1,0 +1,55 @@
+name: New diagnosis rule
+description: Propose a failure KubeWhy should be able to explain.
+labels: ["rule"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A rule can only be built from what the Kubernetes API exposes. The most
+        useful thing you can bring is the raw evidence.
+
+  - type: textarea
+    id: situation
+    attributes:
+      label: The situation
+      description: What goes wrong, and what a user has to do today to work it out.
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: The evidence in the Kubernetes API
+      description: |
+        Which fields, conditions or events show it? Paste real examples —
+        container statuses, event messages, conditions.
+      render: text
+    validations:
+      required: true
+
+  - type: dropdown
+    id: confidence
+    attributes:
+      label: How strongly does that evidence support the conclusion?
+      options:
+        - certain — Kubernetes states the cause explicitly
+        - likely — strongly supported, but not stated
+        - possible — compatible with this and with other explanations
+    validations:
+      required: true
+
+  - type: textarea
+    id: false-positives
+    attributes:
+      label: When would this be wrong?
+      description: |
+        The situation that looks the same but is healthy, or has a different
+        cause. Every rule needs this, and it is the first thing review looks at.
+    validations:
+      required: true
+
+  - type: textarea
+    id: action
+    attributes:
+      label: What should the user do about it?
+      description: Read-only commands only. KubeWhy never suggests mutating a cluster.

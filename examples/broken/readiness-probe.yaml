@@ -1,0 +1,21 @@
+# The container runs, but its readiness probe points at a port nothing serves.
+# Expected: POD_READINESS_PROBE_FAILED, with the probe target and timing.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: readiness-probe-demo
+  labels: { app: kubewhy-demo, case: readiness-probe }
+spec:
+  containers:
+    - name: app
+      image: busybox:1.36
+      command: ["sh", "-c", "sleep 3600"]
+      readinessProbe:
+        httpGet:
+          path: /healthz
+          port: 8080
+        initialDelaySeconds: 5
+        periodSeconds: 10
+        failureThreshold: 3
+      resources:
+        requests: { cpu: 10m, memory: 16Mi }
