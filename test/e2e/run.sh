@@ -56,6 +56,26 @@ done
 
 info "waiting ${SETTLE_SECONDS}s for the cluster to report"
 sleep "$SETTLE_SECONDS"
+
+# A crash-looping container spends part of its cycle terminated and part of it
+# backing off. Asserting on a fixed sleep would pass or fail depending on which
+# half the check lands in, so wait for the steady state instead.
+await_backoff() {
+  local pod="$1" waited=0
+  while (( waited < 120 )); do
+    local reason
+    reason="$(kubectl get pod "$pod" -n "$NAMESPACE" \
+      -o jsonpath='{.status.containerStatuses[*].state.waiting.reason}{.status.initContainerStatuses[*].state.waiting.reason}' 2>/dev/null || true)"
+    [[ "$reason" == *CrashLoopBackOff* ]] && return 0
+    sleep 5
+    waited=$((waited + 5))
+  done
+  info "$pod never reached CrashLoopBackOff after ${waited}s"
+}
+
+for pod in crash-loop-demo command-not-found-demo init-container-demo; do
+  await_backoff "$pod"
+done
 echo
 
 # scenario <kind> <name> <expected exit code> [expected diagnosis id]

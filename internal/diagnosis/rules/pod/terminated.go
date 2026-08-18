@@ -42,11 +42,14 @@ func evaluateTerminated(_ context.Context, snap *snapshot.Pod) []diagnosis.Diagn
 		if term == nil || term.ExitCode == 0 || term.Reason == oomReason {
 			continue
 		}
-		// While the Pod is alive the kubelet restarts the container, and the
-		// backoff is what the user needs to know about; that is another rule.
 		podStopped := snap.Pod.Status.Phase == corev1.PodFailed
 		willRestart := restartPolicy != corev1.RestartPolicyNever
-		if !podStopped && willRestart {
+
+		// A container that is down and will come back is a different claim
+		// from one that is gone for good, and once it has failed repeatedly
+		// the crash loop rule owns it.
+		awaitingRestart := !podStopped && willRestart
+		if awaitingRestart && (isFlapping(container, snap.Now) || inBackoff(container)) {
 			continue
 		}
 
@@ -70,6 +73,18 @@ func evaluateTerminated(_ context.Context, snap *snapshot.Pod) []diagnosis.Diagn
 				Description: "Read the container's logs: the exit code alone does not say what the process was doing when it stopped.",
 				Commands:    []string{logsCommand(snap, container.Name, false)},
 			}},
+		}
+
+		if awaitingRestart {
+			// It has failed, but not often enough to call it a loop. Say what
+			// is true right now and let the next look decide.
+			d.Severity = diagnosis.SeverityWarning
+			d.Summary = fmt.Sprintf("%s %q exited with code %d and is waiting to be restarted",
+				capitalize(container.Kind()), container.Name, term.ExitCode)
+			d.Explanation = fmt.Sprintf(
+				"The container is down at this moment and the Pod's restart policy is %s, so the kubelet "+
+					"will start it again. One failure is not yet a pattern; if it keeps happening, "+
+					"Kubernetes will report it as a restart loop.", restartPolicy)
 		}
 		d.Evidence = append(d.Evidence, diagnosis.Evidence{
 			Source: "podSpec",
@@ -115,6 +130,12 @@ func evictionDiagnosis(snap *snapshot.Pod) (diagnosis.Diagnosis, bool) {
 		})
 	}
 	return d, true
+}
+
+// inBackoff reports whether the kubelet is already waiting between restarts.
+func inBackoff(c snapshot.Container) bool {
+	waiting := c.Waiting()
+	return waiting != nil && waiting.Reason == crashLoopReason
 }
 
 func nodeNameOf(snap *snapshot.Pod) string {

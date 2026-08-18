@@ -730,3 +730,44 @@ func TestResolvedMountFailureIsNotReported(t *testing.T) {
 		}
 	})
 }
+
+// A container that is down right now and will be restarted is a fact worth
+// reporting, even before it has failed often enough to be a loop.
+func TestContainerAwaitingRestartIsReported(t *testing.T) {
+	snap := kubetest.Snap(kubetest.Pod("worker").
+		Condition(corev1.PodReady, corev1.ConditionFalse, "ContainersNotReady", "").
+		Container(kubetest.Container("worker").Terminated("Error", 1).Restarts(1)).
+		Build())
+
+	d, ok := find(evaluate(snap), IDContainerTerminatedError)
+	if !ok {
+		t.Fatalf("expected a termination finding, got %v", ids(evaluate(snap)))
+	}
+	if d.Severity != diagnosis.SeverityWarning {
+		t.Errorf("severity = %s, want warning: one failure is not yet a pattern", d.Severity)
+	}
+	if !strings.Contains(d.Summary, "waiting to be restarted") {
+		t.Errorf("summary = %q, want it to say the container is coming back", d.Summary)
+	}
+}
+
+// Once it is a loop, the crash loop rule owns it and the two must not both fire.
+func TestAwaitingRestartDefersToTheCrashLoopRule(t *testing.T) {
+	backoff := kubetest.Snap(kubetest.Pod("worker").
+		Container(kubetest.Container("worker").
+			Waiting("CrashLoopBackOff", "back-off").LastTerminated("Error", 1).Restarts(3)).
+		Build())
+	got := ids(evaluate(backoff))
+	if !contains(got, IDCrashLoop) || contains(got, IDContainerTerminatedError) {
+		t.Errorf("findings = %v, want only the crash loop", got)
+	}
+
+	between := kubetest.Snap(kubetest.Pod("worker").
+		Container(kubetest.Container("worker").
+			Terminated("Error", 1).LastTerminatedAgo("Error", 1, time.Minute).Restarts(4)).
+		Build())
+	got = ids(evaluate(between))
+	if !contains(got, IDCrashLoop) || contains(got, IDContainerTerminatedError) {
+		t.Errorf("findings = %v, want only the crash loop", got)
+	}
+}

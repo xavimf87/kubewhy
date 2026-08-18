@@ -25,10 +25,26 @@ Two situations that a running Pod's rules would otherwise miss:
 
 `certain`: the exit code, the restart policy and the eviction reason are all facts. The reading of the exit code is shared with [`POD_CRASH_LOOP`](POD_CRASH_LOOP.md) and appears under possible causes, never as a conclusion.
 
+## A container that is down and coming back
+
+A container that has just failed and is waiting to be restarted is reported too, as a **warning** rather than a failure:
+
+```text
+WARNING
+  Container "worker" exited with code 1 and is waiting to be restarted
+
+  The container is down at this moment and the Pod's restart policy is Always,
+  so the kubelet will start it again. One failure is not yet a pattern; if it
+  keeps happening, Kubernetes will report it as a restart loop.
+```
+
+This closes a gap between the two rules. A crash-looping container spends part of its cycle terminated and part of it backing off, and before it has failed twice there is neither a `CrashLoopBackOff` state to see nor a pattern to claim. Without this, such a Pod was reported as "not ready, cause unknown" while its status said plainly that the container had just exited with code 1.
+
+Once it is a loop — the container is backing off, or has restarted twice with a recent failure — [`POD_CRASH_LOOP`](POD_CRASH_LOOP.md) owns it and this rule stays quiet, so one problem is never reported twice.
+
 ## Deliberate silences
 
 - A Pod in phase `Succeeded` produces **nothing**, whatever its containers did. A completed Job Pod is not a failure.
-- A container that exited while the Pod is still alive and will be restarted produces nothing here; the backoff is what matters, and `POD_CRASH_LOOP` reports it.
 - A container terminated with reason `OOMKilled` belongs to [`POD_OOM_KILLED`](POD_OOM_KILLED.md).
 
 ## Example
