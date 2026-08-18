@@ -1,61 +1,103 @@
 name: Release
 
-# How a release happens
+# Trunk-based development: main is always releasable, and everything that
+# reaches main is released.
 #
-#   1. Pull requests land on main with a Conventional Commits title.
-#   2. release-please keeps a "Release" pull request open, holding the version
-#      bump and the changelog it derived from those commits.
-#   3. Merging that pull request cuts the release: it tags the commit and
-#      publishes the GitHub release with the changelog.
-#   4. The same run then builds the binaries and attaches them.
+# There is no release branch, no release pull request and no version to type.
+# A pull request is squash-merged with a Conventional Commits title, that title
+# decides the version, and the release goes out minutes later.
 #
-# Steps 3 and 4 share a workflow run on purpose. A tag pushed by GITHUB_TOKEN
-# does not start another workflow, so a separate tag-triggered job would never
-# fire and the release would ship with no binaries.
+#   merge to main ──▶ what version do these commits deserve?
+#                     │
+#                     ├── nothing releasable (docs, chore) ──▶ stop
+#                     │
+#                     └── verify against a real cluster ──▶ tag ──▶ publish
+#
+# The tag is created inside this run rather than by a person, and the build
+# follows it in the same run: a tag pushed with GITHUB_TOKEN does not start
+# another workflow, so a separate tag-triggered job would never fire.
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Force a version, e.g. v0.2.0. Leave empty to derive it from the commits.'
+        required: false
+        type: string
 
 permissions:
   contents: read
 
+# Releases are serialised. Two merges landing together must not race to tag.
 concurrency:
   group: release
   cancel-in-progress: false
 
 jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # the whole history and every tag, to compare against
+
+      - name: Work out the next version
+        id: plan
+        run: |
+          if [[ -n "${{ inputs.version }}" ]]; then
+            version="${{ inputs.version }}"
+            echo "forced: $version"
+          else
+            version="$(hack/next-version.sh --explain)"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          if [[ -z "$version" ]]; then
+            echo "Nothing releasable landed. No release." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Next release: **$version**" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # A release is only worth cutting if it works against a real cluster, so the
+  # end-to-end scenarios gate it rather than merely reporting afterwards.
+  verify:
+    name: Verify
+    needs: plan
+    if: needs.plan.outputs.version != ''
+    uses: ./.github/workflows/e2e.yml
+
   release:
     name: Release
+    needs: [plan, verify]
+    if: needs.plan.outputs.version != ''
     runs-on: ubuntu-latest
     permissions:
-      contents: write       # create tags, releases and the changelog commit
-      pull-requests: write  # maintain the release pull request
+      contents: write
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
     steps:
-      - uses: googleapis/release-please-action@v4
-        id: release
-        with:
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
-
-      # Everything below only runs on the merge that actually cuts a release.
-      # Check out the tag itself rather than the branch head: GoReleaser derives
-      # the version from the tag on HEAD, and refuses to build without one.
       - uses: actions/checkout@v4
-        if: ${{ steps.release.outputs.release_created }}
         with:
-          ref: ${{ steps.release.outputs.tag_name }}
           fetch-depth: 0
 
       - uses: actions/setup-go@v5
-        if: ${{ steps.release.outputs.release_created }}
         with:
           go-version-file: go.mod
           cache: true
 
-      - name: Build and attach the binaries
-        if: ${{ steps.release.outputs.release_created }}
+      - name: Tag ${{ needs.plan.outputs.version }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$VERSION" -m "$VERSION"
+          git push origin "$VERSION"
+
+      - name: Build and publish
         uses: goreleaser/goreleaser-action@v6
         with:
           version: latest
@@ -64,14 +106,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Summarise
-        if: ${{ steps.release.outputs.release_created }}
         run: |
           {
-            echo "## Released ${{ steps.release.outputs.tag_name }}"
-            echo
-            echo "Binaries and checksums are attached to the release."
+            echo "## Released $VERSION"
             echo
             echo '```bash'
-            echo "go install github.com/xavimf87/kubewhy/cmd/kubectl-why@${{ steps.release.outputs.tag_name }}"
+            echo "go install github.com/xavimf87/kubewhy/cmd/kubectl-why@$VERSION"
             echo '```'
+            echo
+            echo "Binaries and checksums are attached to the release."
           } >> "$GITHUB_STEP_SUMMARY"

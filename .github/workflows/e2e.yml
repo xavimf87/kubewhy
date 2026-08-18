@@ -1,11 +1,11 @@
 name: E2E
 
 # End-to-end scenarios need a real cluster, so they do not gate every pull
-# request. They run on main, on demand, and on a schedule that catches drift
-# in Kubernetes behaviour.
+# request. They gate every release instead: the release workflow calls this one
+# and will not tag anything until it passes. They also run weekly, to catch
+# Kubernetes changing its behaviour under us while nothing here changed.
 on:
-  push:
-    branches: [main]
+  workflow_call:
   workflow_dispatch:
   schedule:
     - cron: '0 6 * * 1'

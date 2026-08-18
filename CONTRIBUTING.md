@@ -15,6 +15,13 @@ make build     # ./bin/kubectl-why
 make help      # every target
 ```
 
+The release machinery is shell, and it is tested like anything else:
+
+```bash
+hack/next-version.sh --explain   # what version would the commits on this branch release?
+hack/next-version.test.sh        # its own tests, which CI runs
+```
+
 To try it against a cluster:
 
 ```bash
@@ -163,7 +170,14 @@ The commits inside your branch are yours to write however you like, in the imper
 
 ## How your change gets released
 
-You do not have to do anything. Once merged, [release-please](https://github.com/googleapis/release-please) adds your change to a pending release pull request; when a maintainer merges that, the version is tagged, the changelog is published and the binaries are built. The whole process is in [`docs/releasing.md`](docs/releasing.md).
+**KubeWhy uses trunk-based development: everything that reaches `main` is released.** There is no release branch and no release schedule. Minutes after your pull request is merged, the version is tagged, the release notes are published, the binaries are built, and your change is installable.
+
+You do not have to do anything for that to happen — but it does mean two things are on you:
+
+- **`main` has to stay releasable.** Every pull request is tested on Linux, macOS and Windows, and every release is verified against a real Kubernetes cluster before it is tagged. If your change cannot be verified that way, say so in the pull request.
+- **Your title picks the version.** `feat` ships a minor, `fix` ships a patch, `docs` ships nothing. Getting it wrong either releases something that should not have been, or leaves a fix sitting unreleased.
+
+The whole process, and why it is set up this way, is in [`docs/releasing.md`](docs/releasing.md).
 
 ## Things this project will not do
 

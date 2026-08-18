@@ -429,7 +429,9 @@ KubeWhy is pre-1.0, so the internal packages change freely. Four things do not, 
 | JSON fields | Added, never renamed or removed. |
 | Exit codes | Fixed. |
 
-A change to any of them is released as a breaking change and explained in the changelog, whatever the version number happens to be. Releases follow [semantic versioning](https://semver.org) and are cut automatically from `main`; the process is in [`docs/releasing.md`](docs/releasing.md).
+A change to any of them is released as a breaking change and explained in the release notes, whatever the version number happens to be.
+
+**KubeWhy uses trunk-based development.** There is one branch, `main`, and everything that reaches it is released: the pull request title decides the version, the end-to-end scenarios are run against a real cluster, and the release is tagged and published minutes after the merge. There is no release branch, no release schedule and no version typed by hand. Details, and the reasoning, in [`docs/releasing.md`](docs/releasing.md).
 
 ## Roadmap
 

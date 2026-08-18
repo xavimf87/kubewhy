@@ -78,8 +78,8 @@ run gh repo edit "$REPO" \
   --enable-wiki=false --enable-projects=false \
   --enable-squash-merge --enable-merge-commit=false --enable-rebase-merge=false \
   --delete-branch-on-merge
-echo "  squash merging only: the pull request title becomes the commit on main,"
-echo "  which is what release-please reads to decide the next version."
+echo "  squash merging only, and the branch deleted after: the pull request title"
+echo "  becomes the commit on main, and that title is what decides the version."
 echo
 
 # The issue templates apply these labels. A label that does not exist is
@@ -148,11 +148,6 @@ Left to do by hand, because the API does not expose them well:
 
   * Social preview image
       Settings → General → Social preview → upload docs/assets/social-preview.png
-
-  * Release permissions
-      Settings → Actions → General → Workflow permissions
-      Allow GitHub Actions to create and approve pull requests
-      (release-please opens the release pull request)
 
   * Discussions categories
       Trim the defaults to Q&A and Ideas; the issue templates link to them.

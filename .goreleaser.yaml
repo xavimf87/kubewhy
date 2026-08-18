@@ -50,15 +50,35 @@ checksum:
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
 
-# release-please derives the changelog from the commit history and writes it
-# into the GitHub release. Generating a second one here would contradict it.
+# The release notes are the changelog. There is no CHANGELOG.md to drift from
+# them, and the commit titles are Conventional Commits, so the grouping below
+# is derived from what actually landed rather than maintained by hand.
 changelog:
-  disable: true
+  use: git
+  sort: asc
+  groups:
+    - title: New diagnoses and features
+      regexp: '^feat(\(.+\))?!?:'
+      order: 0
+    - title: Fixes
+      regexp: '^(fix|revert)(\(.+\))?!?:'
+      order: 1
+    - title: Performance
+      regexp: '^perf(\(.+\))?!?:'
+      order: 2
+    - title: Other
+      order: 99
+  filters:
+    exclude:
+      - '^docs(\(.+\))?:'
+      - '^test(\(.+\))?:'
+      - '^ci(\(.+\))?:'
+      - '^build(\(.+\))?:'
+      - '^chore(\(.+\))?:'
+      - '^refactor(\(.+\))?:'
+      - '^Merge '
 
 release:
-  # release-please has already created the release with its changelog; this
-  # run appends the install instructions and uploads the artifacts to it.
-  mode: append
   draft: false
   prerelease: auto
   footer: |

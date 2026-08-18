@@ -77,6 +77,23 @@ jobs:
         with:
           version: latest
 
+  scripts:
+    name: Scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Syntax
+        run: |
+          for script in hack/*.sh test/e2e/*.sh; do
+            bash -n "$script" && echo "ok $script"
+          done
+
+      # Every release the project cuts goes through next-version.sh, so its
+      # arithmetic is tested like any other code.
+      - name: Version calculation
+        run: hack/next-version.test.sh
+
   release-check:
     name: Release build
     runs-on: ubuntu-latest

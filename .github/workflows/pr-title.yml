@@ -1,9 +1,12 @@
 name: PR title
 
-# Pull requests are squash-merged, so the pull request title becomes the commit
-# message on main, and release-please derives the version and the changelog
-# from it. A title that does not parse means a change silently missing from the
-# next release, which is why this is checked rather than trusted.
+# Trunk-based development: everything that reaches main is released, and the
+# pull request title is what decides the version, because squash merging makes
+# it the commit message on main.
+#
+# A title that does not parse releases nothing, so the change would sit on main
+# looking merged and never ship. That is why this is checked rather than
+# trusted.
 
 on:
   pull_request:

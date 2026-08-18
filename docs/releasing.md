@@ -1,91 +1,107 @@
 # Releasing
 
-Releases are cut from `main`, and nobody types a version number.
+**KubeWhy uses trunk-based development.** There is one long-lived branch, `main`. There are no release branches, no maintenance branches and no long-lived feature branches. `main` is always releasable, and **everything that reaches `main` is released**.
+
+Nobody types a version number, and nobody decides when to cut a release. The commits decide both.
+
+```text
+pull request ──squash──▶ main
+                          │
+                          ▼
+              what version do these commits deserve?
+                          │
+        ┌─────────────────┴─────────────────┐
+        │                                   │
+  nothing releasable                  a version
+  (docs, chore, ci)                        │
+        │                                  ▼
+       stop                    verify against a real cluster
+                                           │
+                                           ▼
+                                  tag ──▶ publish ──▶ binaries
+```
+
+Minutes after your pull request is merged, it is installable.
+
+## Why trunk-based
+
+The alternative — batching changes on a branch and releasing them together — buys a rehearsal window and costs the two things this project cares most about.
+
+The first is **feedback**. Most of the bugs found in KubeWhy so far were found by pointing it at a real cluster and disliking the answer. A fix that sits unreleased for three weeks is a fix nobody is using, and a wrong diagnosis left in the wild is exactly the failure this project cannot afford.
+
+The second is **honesty about what is tested**. A release branch is a configuration nobody develops against. Releasing `main` means the thing shipped is the thing everyone worked on.
+
+The cost is that `main` has to actually be releasable, all the time. That is not a slogan here:
+
+- Every pull request runs the tests on Linux, macOS and Windows, plus `gofmt`, `go vet`, `golangci-lint`, and a release build for all five platforms.
+- **Every release is verified against a real Kubernetes cluster before it is tagged.** The end-to-end scenarios run on kind, and the tag is not created if they fail.
+- Branch protection keeps unreviewed and unverified commits off `main`.
+
+## What decides the version
+
+The pull request title, because squash merging makes it the commit message on `main`. It must follow [Conventional Commits](https://www.conventionalcommits.org), and a workflow rejects it otherwise.
+
+| Commit | Before 1.0 | After 1.0 |
+| --- | --- | --- |
+| `feat:` | minor — 0.1.0 → 0.2.0 | minor |
+| `fix:`, `perf:`, `revert:` | patch — 0.1.0 → 0.1.1 | patch |
+| `feat!:` or `BREAKING CHANGE:` in the body | minor, because 0.x promises nothing | major |
+| `docs:`, `refactor:`, `test:`, `build:`, `ci:`, `chore:` | no release | no release |
+
+When several land together, the strongest wins: one `feat` among ten `fix`es is a minor bump.
+
+A new diagnostic rule is a `feat`. A rule that reported the wrong thing is a `fix`. The distinction reaches users: someone automating against a rule identifier reads the release notes to find out whether their pipeline's behaviour just changed.
+
+The arithmetic lives in [`hack/next-version.sh`](../hack/next-version.sh), and because every release the project will ever cut goes through it, it has [its own tests](../hack/next-version.test.sh) that CI runs:
+
+```bash
+hack/next-version.sh --explain   # what would the next release be, and why
+hack/next-version.test.sh        # is the arithmetic right
+```
+
+## The changelog
+
+The GitHub release **is** the changelog. GoReleaser groups the commits since the previous tag by their Conventional Commits type, so there is no `CHANGELOG.md` in the repository to drift away from what actually shipped.
 
 ## Publishing the repository for the first time
 
 ```bash
 gh repo create kubewhy --public --source=. --remote=origin --push
 
-hack/setup-github.sh --repo <owner>/kubewhy --yes    # description, topics, labels, merge settings
-hack/setup-github.sh --repo <owner>/kubewhy --yes --protect   # once CI has run once
+hack/setup-github.sh --repo <owner>/kubewhy --yes            # description, topics, labels, merge settings
+hack/setup-github.sh --repo <owner>/kubewhy --yes --protect  # once CI has run once
 ```
 
-Then, in the web interface, the two things the API does not expose well:
+Then upload `docs/assets/social-preview.png` under **Settings → General → Social preview**, the one thing the API does not expose.
 
-* **Settings → General → Social preview** — upload `docs/assets/social-preview.png`.
-* **Settings → Actions → General → Workflow permissions** — allow GitHub Actions to create and approve pull requests.
+The first push to `main` releases **v0.1.0**: with no previous tag, the history predates the commit convention, so deriving a version from it would be reading tea leaves. Every release after that is derived.
 
-Finally, cut the first release as described under [The first release](#the-first-release).
+No secrets to configure. `GITHUB_TOKEN` covers tagging and publishing.
 
-## How it works
+## Settings this depends on
 
-```text
-pull request  ──squash──▶  main  ──▶  release-please keeps a Release PR open
-                                              │
-                                    merge that PR
-                                              │
-                                    tag + GitHub release + changelog
-                                              │
-                                    GoReleaser attaches the binaries
-```
+| Setting | Why |
+| --- | --- |
+| Squash merging only | The pull request title becomes the commit on `main`, and that title is the version. With a merge commit the message is *"Merge pull request #12 from…"*, which parses as nothing and releases nothing. |
+| Linear history | The version is derived from the commits between two tags. |
+| Required status checks on `main` | "`main` is always releasable" has to be enforced, not hoped for. |
 
-1. Pull requests are **squash-merged**, so the pull request title becomes the commit on `main`. A workflow checks that title against [Conventional Commits](https://www.conventionalcommits.org), because it is what everything below reads.
-2. On every push to `main`, [release-please](https://github.com/googleapis/release-please) works out what the next version should be and keeps a single pull request open: *"chore(main): release 0.2.0"*. It holds the version bump and the changelog entry.
-3. **Merging that pull request is the act of releasing.** It tags the commit, publishes the GitHub release with the changelog, and updates `CHANGELOG.md`.
-4. The same workflow run then builds the binaries for all five platforms and attaches them, with checksums, to that release.
+`hack/setup-github.sh` applies all three.
 
-Steps 3 and 4 share one workflow run deliberately: a tag pushed by `GITHUB_TOKEN` does not start another workflow, so a separate tag-triggered job would never fire and the release would ship empty.
+## Escape hatches
 
-## What decides the version
+**Force a version.** Actions → Release → Run workflow, with a version such as `v0.2.0`. Useful for a first release, or to jump a number.
 
-| Commit type | Effect before 1.0 | Effect after 1.0 |
-| --- | --- | --- |
-| `feat:` | minor — 0.1.0 → 0.2.0 | minor |
-| `fix:`, `perf:` | patch — 0.1.0 → 0.1.1 | patch |
-| `feat!:` or `BREAKING CHANGE:` | minor, since 0.x makes no stability promise | major |
-| `docs:`, `refactor:`, `test:`, `build:`, `ci:`, `chore:` | no release | no release |
+**Skip a release.** Land the change with a type that does not release (`docs`, `chore`, `refactor`). The change is on `main`; it simply waits for the next release to carry it.
 
-A new diagnostic rule is a `feat`. A rule that reported the wrong thing is a `fix` — and it is worth being precise about which, because a user reading the changelog wants to know whether a finding they automate against changed.
-
-Anything that changes **CLI syntax, a rule identifier, a JSON field or an exit code** is breaking, whatever the version number says. Mark it `!` and say so in the body.
-
-## The first release
-
-The commit history predates this convention, so release-please has nothing to derive a first version from. Cut `0.1.0` once, by hand, with the mechanism release-please provides:
-
-```bash
-git commit --allow-empty -m "chore: release 0.1.0" -m "Release-As: 0.1.0"
-git push origin main
-```
-
-That opens the Release PR for `v0.1.0`. Merge it, and the process above takes over for good. Do not leave `release-as` in `release-please-config.json`; it would pin every future release to the same number.
-
-## What has to be true for it to work
-
-* **Settings → Actions → General → Workflow permissions**: *Allow GitHub Actions to create and approve pull requests*. Without it, release-please cannot open its pull request and the workflow fails with a permissions error that does not say so.
-* **Squash merging only.** With merge commits, the message release-please reads is *"Merge pull request #12 from ..."*, which parses as nothing and releases nothing. `hack/setup-github.sh` turns the other merge methods off.
-* No secrets to configure. `GITHUB_TOKEN` is enough for everything, including publishing binaries.
-
-## Checking a release before it exists
-
-```bash
-goreleaser check                      # the configuration is valid
-goreleaser build --snapshot --clean   # all five platforms build
-```
-
-CI runs both on every pull request, so a release cannot be broken by a change that was reviewed.
+**A bad release.** A published binary cannot be unpublished, so it is fixed by releasing over it. With trunk-based development that is one pull request titled `fix:` and a few minutes — which is the point.
 
 ## Krew
 
-Krew is a separate, manual submission, and it comes **after** a release exists, because the manifest needs the archive URLs and their checksums:
+Krew is a separate, manual submission, and it happens **after** a release exists, because the manifest needs the archive URLs and their checksums:
 
-1. Copy the real version and the `sha256` values from the release's `checksums.txt` into `dist/krew/why.yaml`.
+1. Copy the version and the `sha256` values from the release's `checksums.txt` into `dist/krew/why.yaml`.
 2. Validate locally: `kubectl krew install --manifest=dist/krew/why.yaml`.
 3. Open a pull request against [krew-index](https://github.com/kubernetes-sigs/krew-index).
 
-Until that pull request is merged, the README says Krew support is *planned*, and it should keep saying so.
-
-## If something goes wrong
-
-The release is a normal GitHub release. Deleting it and its tag resets the state; release-please recomputes from the commit history on the next push. Yanking a released binary is not possible, so a bad release is fixed by cutting the next one — which, with `fix:`, takes one pull request.
+Until that is merged, the README says Krew support is *planned*, and it should keep saying so.
