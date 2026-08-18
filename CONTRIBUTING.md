@@ -135,8 +135,35 @@ Review the diff. It is the product's user interface, and it should read like `ku
 - Keep them focused. One rule, one fix, one refactor.
 - Explain *why*, not just what. If the change affects a diagnosis, show the before and after output.
 - Note whether you changed anything users automate against: CLI syntax, rule identifiers, JSON fields, exit codes. These are treated as public API even before 1.0.
-- Write commits in the imperative mood: "Add POD_FAILED_MOUNT rule".
 - CI runs `gofmt`, `go vet`, `go test` and a build on Linux, macOS and Windows.
+
+### The title matters more than the commits
+
+Pull requests are squash-merged, so **your pull request title becomes the commit on `main`** — and that is what decides the next version number and what appears in the changelog. It has to follow [Conventional Commits](https://www.conventionalcommits.org), and a workflow checks it:
+
+```text
+feat: add POD_FAILED_MOUNT rule
+feat(service): follow EndpointSlices to the backend Pods
+fix: stop reporting expired probe failures as current
+docs(rules): explain why numeric target ports are not checked
+```
+
+| Type | Use it for | Next release |
+| --- | --- | --- |
+| `feat` | a new rule, resource or user-visible capability | minor bump |
+| `fix` | a wrong or misleading diagnosis, or a bug | patch bump |
+| `perf` | fewer API calls, a faster analysis | patch bump |
+| `docs`, `refactor`, `test`, `build`, `ci`, `chore` | everything else | no release |
+
+**A new rule is a `feat`. A rule that said the wrong thing is a `fix`.** The distinction is not pedantry: someone automating against a rule identifier reads the changelog to find out whether their pipeline's behaviour just changed.
+
+Add `!` before the colon for anything that breaks CLI syntax, a rule identifier, a JSON field or an exit code — `feat!: rename POD_X to POD_Y` — and explain the migration in the body.
+
+The commits inside your branch are yours to write however you like, in the imperative mood; only the title is squashed onto `main`.
+
+## How your change gets released
+
+You do not have to do anything. Once merged, [release-please](https://github.com/googleapis/release-please) adds your change to a pending release pull request; when a maintainer merges that, the version is tagged, the changelog is published and the binaries are built. The whole process is in [`docs/releasing.md`](docs/releasing.md).
 
 ## Things this project will not do
 

@@ -1,0 +1,12 @@
+# Every change is reviewed by the maintainers.
+*                                   @xavimf87
+
+# The rule set is the product. Changes here need someone who can tell a
+# diagnosis from a guess.
+/internal/diagnosis/                @xavimf87
+/docs/rules/                        @xavimf87
+
+# What KubeWhy is allowed to do to a cluster.
+/internal/kube/                     @xavimf87
+/SECURITY.md                        @xavimf87
+/docs/security.md                   @xavimf87

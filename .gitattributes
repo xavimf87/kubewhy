@@ -1,0 +1,18 @@
+# CI runs the tests on Windows, and the text renderer is checked against golden
+# files byte for byte. A checkout that converted them to CRLF would fail every
+# comparison for a reason that has nothing to do with the code.
+* text=auto eol=lf
+
+*.go        text eol=lf diff=golang
+*.sh        text eol=lf
+*.yaml      text eol=lf
+*.yml       text eol=lf
+*.md        text eol=lf
+*.svg       text eol=lf
+*.txt       text eol=lf
+
+*.png       binary
+
+# Generated output; keep it out of pull request diffs by default.
+internal/output/testdata/*.txt linguist-generated=false
+go.sum      -diff

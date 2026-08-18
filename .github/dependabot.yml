@@ -1,0 +1,33 @@
+version: 2
+
+updates:
+  # Kubernetes libraries move together and release monthly, so a weekly check
+  # is enough and a grouped pull request keeps them consistent with each other.
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: build
+    groups:
+      kubernetes:
+        patterns:
+          - k8s.io/*
+          - sigs.k8s.io/*
+      golang-x:
+        patterns:
+          - golang.org/x/*
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        patterns:
+          - '*'

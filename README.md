@@ -13,6 +13,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/xavimf87/kubewhy/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/xavimf87/kubewhy?sort=semver&color=4A8BF5"></a>
   <a href="https://github.com/xavimf87/kubewhy/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/xavimf87/kubewhy/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://goreportcard.com/report/github.com/xavimf87/kubewhy"><img alt="Go report card" src="https://goreportcard.com/badge/github.com/xavimf87/kubewhy"></a>
   <a href="https://pkg.go.dev/github.com/xavimf87/kubewhy"><img alt="Go reference" src="https://pkg.go.dev/badge/github.com/xavimf87/kubewhy.svg"></a>
@@ -416,6 +417,19 @@ kubectl why pod "$POD" -n "$NS" -o json | jq -r '.diagnoses[].id'
 A missing permission on a *related* object degrades the report; it does not produce exit code `4`.
 
 ---
+
+## Versioning and stability
+
+KubeWhy is pre-1.0, so the internal packages change freely. Four things do not, because people automate around them:
+
+| Surface | Promise |
+| --- | --- |
+| CLI syntax | Flags and arguments are added, not removed or repurposed. |
+| Rule identifiers | Added and deprecated, never silently renamed or reused for a different meaning. |
+| JSON fields | Added, never renamed or removed. |
+| Exit codes | Fixed. |
+
+A change to any of them is released as a breaking change and explained in the changelog, whatever the version number happens to be. Releases follow [semantic versioning](https://semver.org) and are cut automatically from `main`; the process is in [`docs/releasing.md`](docs/releasing.md).
 
 ## Roadmap
 

@@ -1,0 +1,69 @@
+name: PR title
+
+# Pull requests are squash-merged, so the pull request title becomes the commit
+# message on main, and release-please derives the version and the changelog
+# from it. A title that does not parse means a change silently missing from the
+# next release, which is why this is checked rather than trusted.
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  conventional:
+    name: Conventional Commits
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -euo pipefail
+
+          pattern='^(feat|fix|perf|docs|refactor|test|build|ci|chore|revert)(\([a-z0-9,./-]+\))?!?: .+'
+
+          if ! [[ "$TITLE" =~ $pattern ]]; then
+            cat >&2 <<MSG
+          The pull request title does not follow Conventional Commits.
+
+            got:  $TITLE
+            want: <type>[optional scope]: <description>
+
+          Types, and what each one does to the next release:
+
+            feat      a new rule, resource or user-visible capability   minor bump
+            fix       a wrong or misleading diagnosis, or a bug         patch bump
+            perf      fewer API calls, faster analysis                  patch bump
+            docs      documentation only                                no release
+            refactor  internal change with no behaviour change          no release
+            test      tests only                                        no release
+            build     build, packaging or dependencies                  no release
+            ci        workflows                                         no release
+            chore     anything else                                     no release
+
+          Add ! before the colon for a breaking change to the CLI syntax, a rule
+          identifier, a JSON field or an exit code: "feat!: rename ...".
+
+          Examples:
+
+            feat: add POD_FAILED_MOUNT rule
+            feat(service): follow EndpointSlices to the backend Pods
+            fix: stop reporting expired probe failures as current
+            docs(rules): explain why numeric target ports are not checked
+          MSG
+            exit 1
+          fi
+
+          subject="${TITLE#*: }"
+          if [[ "$subject" == *. ]]; then
+            echo "The title should not end with a full stop: $TITLE" >&2
+            exit 1
+          fi
+          if (( ${#TITLE} > 72 )); then
+            echo "The title is ${#TITLE} characters; keep it under 72 so it reads well in git log." >&2
+            exit 1
+          fi
+          echo "ok: $TITLE"

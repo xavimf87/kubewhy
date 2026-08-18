@@ -1,34 +1,77 @@
 name: Release
 
+# How a release happens
+#
+#   1. Pull requests land on main with a Conventional Commits title.
+#   2. release-please keeps a "Release" pull request open, holding the version
+#      bump and the changelog it derived from those commits.
+#   3. Merging that pull request cuts the release: it tags the commit and
+#      publishes the GitHub release with the changelog.
+#   4. The same run then builds the binaries and attaches them.
+#
+# Steps 3 and 4 share a workflow run on purpose. A tag pushed by GITHUB_TOKEN
+# does not start another workflow, so a separate tag-triggered job would never
+# fire and the release would ship with no binaries.
+
 on:
   push:
-    tags: ['v*']
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
-    name: Publish release artifacts
+    name: Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write       # create tags, releases and the changelog commit
+      pull-requests: write  # maintain the release pull request
     steps:
-      - uses: actions/checkout@v4
+      - uses: googleapis/release-please-action@v4
+        id: release
         with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      # Everything below only runs on the merge that actually cuts a release.
+      # Check out the tag itself rather than the branch head: GoReleaser derives
+      # the version from the tag on HEAD, and refuses to build without one.
+      - uses: actions/checkout@v4
+        if: ${{ steps.release.outputs.release_created }}
+        with:
+          ref: ${{ steps.release.outputs.tag_name }}
           fetch-depth: 0
 
       - uses: actions/setup-go@v5
+        if: ${{ steps.release.outputs.release_created }}
         with:
           go-version-file: go.mod
           cache: true
 
-      - name: Test before releasing
-        run: go test ./...
-
-      # Publishing happens only for tags, and only with the token GitHub
-      # provides to this workflow. Nothing is pushed anywhere else.
-      - uses: goreleaser/goreleaser-action@v6
+      - name: Build and attach the binaries
+        if: ${{ steps.release.outputs.release_created }}
+        uses: goreleaser/goreleaser-action@v6
         with:
           version: latest
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summarise
+        if: ${{ steps.release.outputs.release_created }}
+        run: |
+          {
+            echo "## Released ${{ steps.release.outputs.tag_name }}"
+            echo
+            echo "Binaries and checksums are attached to the release."
+            echo
+            echo '```bash'
+            echo "go install github.com/xavimf87/kubewhy/cmd/kubectl-why@${{ steps.release.outputs.tag_name }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

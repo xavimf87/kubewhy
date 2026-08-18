@@ -50,30 +50,16 @@ checksum:
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
 
+# release-please derives the changelog from the commit history and writes it
+# into the GitHub release. Generating a second one here would contradict it.
 changelog:
-  use: github
-  sort: asc
-  groups:
-    - title: New diagnoses
-      regexp: '(?i)^.*\b(rule|diagnos)'
-      order: 0
-    - title: Features
-      regexp: '(?i)^feat'
-      order: 1
-    - title: Fixes
-      regexp: '(?i)^fix'
-      order: 2
-    - title: Other
-      order: 99
-  filters:
-    exclude:
-      - '(?i)^docs?:'
-      - '(?i)^test:'
-      - '(?i)^chore'
-      - Merge pull request
+  disable: true
 
 release:
-  draft: true
+  # release-please has already created the release with its changelog; this
+  # run appends the install instructions and uploads the artifacts to it.
+  mode: append
+  draft: false
   prerelease: auto
   footer: |
     ## Install

@@ -1,0 +1,44 @@
+name: CodeQL
+
+# KubeWhy runs with a user's cluster credentials, so a vulnerability here is a
+# vulnerability in their cluster access. Static analysis runs on every change
+# and weekly, because a dependency can turn a safe pattern unsafe without the
+# code changing at all.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 7 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  analyse:
+    name: Analyse
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: go
+          queries: security-and-quality
+
+      - uses: github/codeql-action/autobuild@v3
+
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:go
