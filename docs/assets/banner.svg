@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640" role="img" aria-label="KubeWhy — stop describing Kubernetes problems, start explaining them">
+  <title>KubeWhy</title>
+  <defs>
+    <linearGradient id="kw-ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4A8BF5"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+    <linearGradient id="kw-word" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#E6EDF3"/>
+      <stop offset="1" stop-color="#9FB3C8"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1280" height="640" fill="#0D1117"/>
+
+  <!-- The mark, scaled from logo.svg. -->
+  <g transform="translate(452 78) scale(1.4)">
+    <polygon
+      points="128.0,28.0 206.2,65.7 225.5,150.3 171.4,218.1 84.6,218.1 30.5,150.3 49.8,65.7"
+      fill="none" stroke="url(#kw-ring)" stroke-width="14" stroke-linejoin="round"/>
+    <path d="M 94 100 A 34 34 0 1 1 128 134 L 128 156"
+          fill="none" stroke="url(#kw-ring)" stroke-width="17" stroke-linecap="round"/>
+    <circle cx="128" cy="186" r="11" fill="#F59E0B"/>
+  </g>
+
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" text-anchor="middle">
+    <text x="640" y="486" font-size="82" font-weight="700" fill="url(#kw-word)" letter-spacing="-1">KubeWhy</text>
+    <text x="640" y="534" font-size="27" font-weight="500" fill="#7D8590">Stop describing Kubernetes problems. Start explaining them.</text>
+    <text x="640" y="580" font-size="22" font-weight="400" fill="#4A8BF5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">kubectl why pod api-7b89d8c9-xfd2</text>
+  </g>
+</svg>

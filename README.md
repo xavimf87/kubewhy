@@ -1,8 +1,26 @@
-# KubeWhy
+<p align="center">
+  <img src="docs/assets/logo.svg" alt="" width="132">
+</p>
 
-**Stop describing Kubernetes problems. Start explaining them.**
+<h1 align="center">KubeWhy</h1>
 
-KubeWhy is a read-only `kubectl` plugin that tells you *why* a Kubernetes resource is not working.
+<p align="center">
+  <strong>Stop describing Kubernetes problems. Start explaining them.</strong>
+</p>
+
+<p align="center">
+  A read-only <code>kubectl</code> plugin that tells you <em>why</em> a Kubernetes resource is not working.
+</p>
+
+<p align="center">
+  <a href="https://github.com/xavimf87/kubewhy/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/xavimf87/kubewhy/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://goreportcard.com/report/github.com/xavimf87/kubewhy"><img alt="Go report card" src="https://goreportcard.com/badge/github.com/xavimf87/kubewhy"></a>
+  <a href="https://pkg.go.dev/github.com/xavimf87/kubewhy"><img alt="Go reference" src="https://pkg.go.dev/badge/github.com/xavimf87/kubewhy.svg"></a>
+  <a href="LICENSE"><img alt="Apache 2.0 licence" src="https://img.shields.io/badge/licence-Apache%202.0-blue.svg"></a>
+  <a href="docs/security.md"><img alt="Read-only by design" src="https://img.shields.io/badge/cluster%20access-read--only-brightgreen.svg"></a>
+</p>
+
+---
 
 ```console
 $ kubectl why pod checkout-7c8cc8679-j9qd8 -n prod
