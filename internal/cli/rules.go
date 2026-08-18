@@ -51,12 +51,15 @@ type ruleGroup struct {
 	Rules []diagnosis.RuleMeta `json:"rules"`
 }
 
+// ruleGroups lists every rule, including the fallbacks. A fallback is not a
+// rule, but its identifier appears in the output like any other, so leaving it
+// out of the listing would make the tool less explainable, not more accurate.
 func ruleGroups() []ruleGroup {
 	return []ruleGroup{
-		{Kind: "Pod", Rules: podrules.Catalog()},
+		{Kind: "Pod", Rules: append(podrules.Catalog(), podrules.FallbackMeta())},
 		{Kind: "Service", Rules: servicerules.Catalog()},
 		{Kind: "Deployment", Rules: deploymentrules.Catalog()},
 		{Kind: "Ingress", Rules: ingressrules.Catalog()},
-		{Kind: "PersistentVolumeClaim", Rules: pvcrules.Catalog()},
+		{Kind: "PersistentVolumeClaim", Rules: append(pvcrules.Catalog(), pvcrules.FallbackMeta())},
 	}
 }

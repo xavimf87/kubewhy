@@ -122,3 +122,14 @@ func orUnset(s string) string {
 	}
 	return s
 }
+
+// FallbackMeta documents the fallback so that every identifier a user can see
+// in the output is also listed by `kubectl why rules`.
+func FallbackMeta() diagnosis.RuleMeta {
+	return diagnosis.RuleMeta{
+		ID:    IDNotReadyUnexplained,
+		Title: "The Pod is not ready and nothing explains why (fallback)",
+		Description: "Produced only when every rule stayed silent. It reports the observed phase, " +
+			"container states, failing conditions and warning events without naming a cause.",
+	}
+}

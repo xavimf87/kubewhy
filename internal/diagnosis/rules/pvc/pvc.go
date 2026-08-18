@@ -364,3 +364,14 @@ func truncate(s string, limit int) string {
 	}
 	return strings.TrimSpace(s[:limit]) + "…"
 }
+
+// FallbackMeta documents the fallback so that every identifier a user can see
+// in the output is also listed by `kubectl why rules`.
+func FallbackMeta() diagnosis.RuleMeta {
+	return diagnosis.RuleMeta{
+		ID:    IDPending,
+		Title: "The claim has not bound and nothing explains why (fallback)",
+		Description: "Produced only when every rule stayed silent. It reports how long the claim has " +
+			"been waiting and every warning event, without naming a cause.",
+	}
+}
