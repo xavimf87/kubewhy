@@ -61,7 +61,9 @@ func (r *textRenderer) render(report *diagnosis.Report) {
 		r.degradations(report.Degradations)
 	}
 
-	if len(report.Diagnoses) == 0 && report.Status != diagnosis.StatusUnknown {
+	// An observation is not an issue, so the reassurance still belongs here.
+	// It is deliberately not "everything works": Kubernetes cannot prove that.
+	if report.Status == diagnosis.StatusHealthy {
 		r.blank()
 		r.line("No obvious Kubernetes-level issue detected.")
 	}

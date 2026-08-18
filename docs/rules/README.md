@@ -18,6 +18,7 @@ Every finding KubeWhy produces has a stable identifier. Identifiers are public A
 | A volume could not be mounted | `POD_FAILED_MOUNT` | [POD_FAILED_MOUNT.md](POD_FAILED_MOUNT.md) |
 | A claim the Pod mounts is not usable | `POD_PVC_NOT_BOUND`, `POD_PVC_NOT_FOUND` | [POD_PVC_NOT_BOUND.md](POD_PVC_NOT_BOUND.md) |
 | The Pod's node is not ready | `POD_NODE_NOT_READY` | [POD_NODE_NOT_READY.md](POD_NODE_NOT_READY.md) |
+| A container has restarted in the past | `POD_RESTARTED` | [POD_RESTARTED.md](POD_RESTARTED.md) |
 | *(fallback, not a rule)* | `POD_NOT_READY` | [POD_NOT_READY.md](POD_NOT_READY.md) |
 
 ## Service

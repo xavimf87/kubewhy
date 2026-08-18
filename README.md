@@ -236,6 +236,7 @@ Every finding carries a **stable identifier**, a **severity** and a **confidence
 | `POD_PVC_NOT_FOUND` | A claim the Pod mounts that does not exist. |
 | `POD_PVC_NOT_BOUND` | A claim that has not bound — and, when it uses `WaitForFirstConsumer`, why that is expected rather than broken. |
 | `POD_NODE_NOT_READY` | The Pod's node is not reporting Ready. |
+| `POD_RESTARTED` | A working container that has restarted before: how many times, how long ago, and how the last run ended — with an explicit note that Kubernetes keeps only the most recent one. |
 | `POD_NOT_READY` | The Pod is not ready and **no rule could explain it**. KubeWhy says so instead of inventing a cause. |
 
 ### Service

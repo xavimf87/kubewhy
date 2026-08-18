@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -61,7 +62,7 @@ func addPodStatusSection(report *diagnosis.Report, snap *snapshot.Pod) {
 	section := diagnosis.Section{Title: "Status", Items: []diagnosis.Item{
 		{Key: "Phase", Value: string(snap.Pod.Status.Phase)},
 		{Key: "Ready", Value: fmt.Sprintf("%d/%d containers", ready, total)},
-		{Key: "Restarts", Value: fmt.Sprintf("%d", totalRestarts(snap))},
+		restartsItem(snap),
 		{Key: "Age", Value: format.Duration(snap.Age())},
 	}}
 	if node := snap.Pod.Spec.NodeName; node != "" {
@@ -124,6 +125,23 @@ func addOwnerSection(report *diagnosis.Report, chain []string) {
 		return
 	}
 	report.AddSection(diagnosis.Section{Title: "Owned by", Tree: chain})
+}
+
+// restartsItem reports the restart count with when the last one happened,
+// because a count on its own says nothing about whether it is still going on.
+func restartsItem(snap *snapshot.Pod) diagnosis.Item {
+	item := diagnosis.Item{Key: "Restarts", Value: fmt.Sprintf("%d", totalRestarts(snap))}
+
+	var latest time.Time
+	for _, container := range snap.Containers() {
+		if last := container.LastTerminated(); last != nil && last.FinishedAt.Time.After(latest) {
+			latest = last.FinishedAt.Time
+		}
+	}
+	if !latest.IsZero() {
+		item.Note = "last one " + format.Duration(snap.Now.Sub(latest)) + " ago"
+	}
+	return item
 }
 
 func readyContainers(snap *snapshot.Pod) (ready, total int) {

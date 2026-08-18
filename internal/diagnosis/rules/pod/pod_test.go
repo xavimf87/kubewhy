@@ -771,3 +771,84 @@ func TestAwaitingRestartDefersToTheCrashLoopRule(t *testing.T) {
 		t.Errorf("findings = %v, want only the crash loop", got)
 	}
 }
+
+// A restart count with no explanation is the question a user is left with
+// after `kubectl get pod`. What the API does record belongs in the report, and
+// what it does not record belongs there too.
+func TestRestartHistoryIsExplained(t *testing.T) {
+	snap := kubetest.Snap(kubetest.Pod("provisioner").Ready().
+		Container(kubetest.Container("app").Restarts(6).
+			LastTerminatedAgo("Error", 1, 8*time.Hour)).Build())
+
+	d, ok := find(evaluate(snap), IDRestarted)
+	if !ok {
+		t.Fatalf("expected a restart history finding, got %v", ids(evaluate(snap)))
+	}
+	if d.Severity != diagnosis.SeverityInfo {
+		t.Errorf("severity = %s, want info: the container is working", d.Severity)
+	}
+	for _, want := range []string{"6 times", "8h ago"} {
+		if !strings.Contains(d.Summary, want) {
+			t.Errorf("summary = %q, want it to contain %q", d.Summary, want)
+		}
+	}
+	if !strings.Contains(d.Explanation, "not in the API") {
+		t.Errorf("the report must say what Kubernetes does not keep: %q", d.Explanation)
+	}
+	if len(d.Suggestions) == 0 || !strings.Contains(d.Suggestions[0].Commands[0], "--previous") {
+		t.Error("expected the previous instance's logs to be offered")
+	}
+
+	// An observation must not make a working Pod look broken.
+	report := diagnosis.Report{Diagnoses: evaluate(snap)}
+	if got := report.DeriveStatus(); got != diagnosis.StatusHealthy {
+		t.Errorf("status = %s, want healthy", got)
+	}
+}
+
+func TestRestartHistoryStaysOutOfTheWay(t *testing.T) {
+	tests := []struct {
+		name string
+		snap func() *snapshot.Pod
+	}{
+		{
+			name: "a container that never restarted",
+			snap: func() *snapshot.Pod {
+				return kubetest.Snap(kubetest.Pod("api").Ready().
+					Container(kubetest.Container("api")).Build())
+			},
+		},
+		{
+			name: "a container still cycling belongs to the crash loop rule",
+			snap: func() *snapshot.Pod {
+				return kubetest.Snap(kubetest.Pod("api").
+					Container(kubetest.Container("api").NotReady().
+						Restarts(4).LastTerminatedAgo("Error", 1, time.Minute)).Build())
+			},
+		},
+		{
+			name: "a container that was OOM killed belongs to the OOM rule",
+			snap: func() *snapshot.Pod {
+				return kubetest.Snap(kubetest.Pod("api").Ready().
+					Container(kubetest.Container("api").Memory("", "512Mi").
+						Restarts(2).LastTerminatedAgo("OOMKilled", 137, 3*time.Hour)).Build())
+			},
+		},
+		{
+			name: "a container that is not running yet",
+			snap: func() *snapshot.Pod {
+				return kubetest.Snap(kubetest.Pod("api").Phase(corev1.PodPending).
+					Container(kubetest.Container("api").Waiting("ContainerCreating", "").
+						Restarts(3)).Build())
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ids(evaluate(tt.snap())); contains(got, IDRestarted) {
+				t.Errorf("did not expect a restart history finding, got %v", got)
+			}
+		})
+	}
+}

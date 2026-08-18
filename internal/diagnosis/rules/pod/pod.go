@@ -38,6 +38,7 @@ const (
 	IDPVCNotFound              = "POD_PVC_NOT_FOUND"
 	IDPVCNotBound              = "POD_PVC_NOT_BOUND"
 	IDNodeNotReady             = "POD_NODE_NOT_READY"
+	IDRestarted                = "POD_RESTARTED"
 	IDNotReadyUnexplained      = "POD_NOT_READY"
 )
 
@@ -55,6 +56,7 @@ func Rules() []diagnosis.Rule[*snapshot.Pod] {
 		mountRule(),
 		claimRule(),
 		nodeRule(),
+		restartHistoryRule(),
 	}
 }
 

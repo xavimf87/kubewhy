@@ -29,7 +29,7 @@ ROOT CAUSE
 Status
   Phase     Running
   Ready     0/1 containers
-  Restarts  8
+  Restarts  8  last one 5m ago
   Age       1h
   Node      node-3
 
