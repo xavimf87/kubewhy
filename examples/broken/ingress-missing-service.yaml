@@ -1,0 +1,29 @@
+# An Ingress routing to a Service that does not exist.
+# Expected: INGRESS_SERVICE_NOT_FOUND, with every affected route listed.
+#
+# Note: no ingress controller is required for this. KubeWhy diagnoses the
+# Kubernetes resource chain, not the controller.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api-demo
+  labels: { app: kubewhy-demo, case: ingress }
+spec:
+  rules:
+    - host: api.kubewhy.example
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: a-service-that-does-not-exist
+                port:
+                  number: 80
+          - path: /admin
+            pathType: Prefix
+            backend:
+              service:
+                name: a-service-that-does-not-exist
+                port:
+                  number: 80

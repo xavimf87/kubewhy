@@ -15,50 +15,61 @@ import (
 // spec field existed. Clusters upgraded over many releases still carry it.
 const legacyStorageClassAnnotation = "volume.beta.kubernetes.io/storage-class"
 
-// resolveStorageClass fills in the class a claim asks for and its binding
-// mode. A claim that names no class uses the cluster's default, which is
-// resolved by listing classes only when necessary.
-func resolveStorageClass(ctx context.Context, c *kube.Client, coll *snapshot.Collection, ref *snapshot.PVCRef) {
+// storageClassInfo resolves the class a claim relies on and how it binds.
+//
+// A claim that names no class uses the cluster's default, which costs a list
+// request; that is only done when the answer can change a diagnosis, meaning
+// when the claim has not bound.
+func storageClassInfo(ctx context.Context, c *kube.Client, coll *snapshot.Collection, claim *corev1.PersistentVolumeClaim) snapshot.StorageClassInfo {
 	// An explicitly empty class means the claim wants no dynamic
 	// provisioning and expects a pre-created volume; there is nothing to look
 	// up, and reporting a missing class would be wrong.
-	if ref.Claim != nil && ref.Claim.Spec.StorageClassName != nil && *ref.Claim.Spec.StorageClassName == "" {
-		ref.BindingMode = string(storagev1.VolumeBindingImmediate)
-		return
+	if claim != nil && claim.Spec.StorageClassName != nil && *claim.Spec.StorageClassName == "" {
+		return snapshot.StorageClassInfo{
+			ExplicitlyNone: true,
+			BindingMode:    string(storagev1.VolumeBindingImmediate),
+		}
 	}
-	name := storageClassName(ref.Claim)
-	if name == "" {
-		resolveDefaultStorageClass(ctx, c, coll, ref)
-		return
-	}
-	ref.StorageClass = name
 
+	name := storageClassName(claim)
+	if name == "" {
+		return defaultStorageClassInfo(ctx, c, coll)
+	}
+
+	info := snapshot.StorageClassInfo{Name: name, Requested: true}
 	class, err := c.Clientset.StorageV1().StorageClasses().Get(ctx, name, metav1.GetOptions{})
-	ref.ClassExists = existence(coll, "storageclasses", "checking the requested storage class exists", err)
-	if ref.ClassExists == snapshot.Found {
-		ref.BindingMode = bindingMode(class)
+	info.Exists = existence(coll, "storageclasses", "checking the requested storage class exists", err)
+	if info.Exists == snapshot.Found {
+		info.BindingMode = bindingMode(class)
+		info.Provisioner = class.Provisioner
 		coll.Inspect("storageclass " + name)
 	}
+	return info
 }
 
-func resolveDefaultStorageClass(ctx context.Context, c *kube.Client, coll *snapshot.Collection, ref *snapshot.PVCRef) {
+func defaultStorageClassInfo(ctx context.Context, c *kube.Client, coll *snapshot.Collection) snapshot.StorageClassInfo {
+	info := snapshot.StorageClassInfo{}
 	list, err := c.Clientset.StorageV1().StorageClasses().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		degrade(coll, "storageclasses", "identifying the default storage class", err)
-		return
+		return info
 	}
 	coll.Inspect("storageclasses")
 	for i := range list.Items {
 		class := &list.Items[i]
 		if class.Annotations["storageclass.kubernetes.io/is-default-class"] == "true" {
-			ref.StorageClass = class.Name
-			ref.ClassExists = snapshot.Found
-			ref.BindingMode = bindingMode(class)
-			return
+			info.Name = class.Name
+			info.Exists = snapshot.Found
+			info.DefaultExists = snapshot.Found
+			info.BindingMode = bindingMode(class)
+			info.Provisioner = class.Provisioner
+			return info
 		}
 	}
 	// No default class exists. That is a fact a claim diagnosis can use.
-	ref.ClassExists = snapshot.Missing
+	info.Exists = snapshot.Missing
+	info.DefaultExists = snapshot.Missing
+	return info
 }
 
 func bindingMode(class *storagev1.StorageClass) string {

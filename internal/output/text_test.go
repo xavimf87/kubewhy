@@ -11,12 +11,14 @@ import (
 	"testing"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/xavimf87/kubewhy/internal/analyze"
 	"github.com/xavimf87/kubewhy/internal/diagnosis"
 	"github.com/xavimf87/kubewhy/internal/kubetest"
 	"github.com/xavimf87/kubewhy/internal/output"
+	"github.com/xavimf87/kubewhy/internal/snapshot"
 )
 
 var update = flag.Bool("update", false, "rewrite the golden files")
@@ -41,6 +43,28 @@ func oomReport(t *testing.T) *diagnosis.Report {
 		kubetest.Ref("Deployment", "prod", "checkout"),
 	}
 	return analyze.PodReport(context.Background(), snap)
+}
+
+// readyBackend and unreadyBackend build Service backends for the goldens.
+func readyBackend(name string) *corev1.Pod {
+	return kubetest.Pod(name).Namespace("prod").Ready().
+		Container(kubetest.Container("api").HTTPReadiness("/healthz", 8080)).Build()
+}
+
+func unreadyBackend(name string) *corev1.Pod {
+	return kubetest.Pod(name).Namespace("prod").
+		Condition(corev1.PodReady, corev1.ConditionFalse, "ContainersNotReady", "containers with unready status: [api]").
+		Container(kubetest.Container("api").HTTPReadiness("/healthz", 8080).NotReady()).Build()
+}
+
+func unreadyBackendSnap(name string) *snapshot.Pod {
+	pod := kubetest.Pod(name).Namespace("prod").
+		Condition(corev1.PodReady, corev1.ConditionFalse, "ContainersNotReady", "").
+		Container(kubetest.Container("api").HTTPReadiness("/healthz", 8080).NotReady()).Build()
+	snap := kubetest.Snap(pod)
+	snap.Events = snapshot.Events{kubetest.ForContainer(kubetest.Event("Warning", "Unhealthy",
+		"Readiness probe failed: HTTP probe failed with statuscode: 503"), "api")}
+	return snap
 }
 
 func TestTextGolden(t *testing.T) {
@@ -81,6 +105,77 @@ func TestTextGolden(t *testing.T) {
 					Detail:      `nodes "node-1" is forbidden: User "dev" cannot get resource "nodes"`,
 				})
 				return analyze.PodReport(context.Background(), snap)
+			},
+		},
+		{
+			name: "service_healthy",
+			report: func(t *testing.T) *diagnosis.Report {
+				snap := kubetest.ServiceSnap(
+					kubetest.Service("payments").Namespace("prod").
+						Selector("app", "payments").Port(80, 8080).Build(),
+					readyBackend("payments-abc"), readyBackend("payments-def"), readyBackend("payments-ghi"))
+				snap.Endpoints = kubetest.ReadyEndpoints(3, 0)
+				return analyze.ServiceReport(context.Background(), snap)
+			},
+		},
+		{
+			name: "service_no_ready_endpoints",
+			report: func(t *testing.T) *diagnosis.Report {
+				snap := kubetest.ServiceSnap(
+					kubetest.Service("payments").Namespace("prod").
+						Selector("app", "payments").Port(80, 8080).Build(),
+					unreadyBackend("payments-abc"), unreadyBackend("payments-def"), unreadyBackend("payments-ghi"))
+				snap.Endpoints = kubetest.ReadyEndpoints(0, 3)
+				for _, backend := range snap.Backends {
+					backend.Events = snapshot.Events{kubetest.ForContainer(kubetest.Event("Warning", "Unhealthy",
+						"Readiness probe failed: HTTP probe failed with statuscode: 503"), "api")}
+				}
+				return analyze.ServiceReport(context.Background(), snap)
+			},
+		},
+		{
+			name: "deployment_pods_crashing",
+			report: func(t *testing.T) *diagnosis.Report {
+				deployment := kubetest.Deployment("checkout").Namespace("prod").Replicas(3).Status(0, 0, 3).Build()
+				crashing := func(name string) *corev1.Pod {
+					return kubetest.Pod(name).Namespace("prod").
+						Condition(corev1.PodReady, corev1.ConditionFalse, "ContainersNotReady", "").
+						Container(kubetest.Container("checkout").Memory("256Mi", "512Mi").
+							Waiting("CrashLoopBackOff", "back-off 5m0s restarting failed container").
+							LastTerminated("OOMKilled", 137).Restarts(9)).Build()
+				}
+				snap := kubetest.DeploymentSnap(deployment,
+					crashing("checkout-7c8-a"), crashing("checkout-7c8-b"), crashing("checkout-7c8-c"))
+				snap.ReplicaSets = []*appsv1.ReplicaSet{kubetest.ReplicaSet("checkout-7c8", "1", deployment, 3, 0)}
+				snap.Current = snap.ReplicaSets[0]
+				return analyze.DeploymentReport(context.Background(), snap)
+			},
+		},
+		{
+			name: "ingress_broken_backend",
+			report: func(t *testing.T) *diagnosis.Report {
+				snap := kubetest.IngressSnap(kubetest.Ingress("api").Namespace("prod").
+					Class("nginx").Address("lb.example.com").
+					Rule("api.example.com", "/", "api", 80).
+					Rule("api.example.com", "/admin", "admin", 80).Build())
+				snap.Class = snapshot.IngressClass{Name: "nginx", Exists: snapshot.Found}
+				backend := kubetest.IngressBackend(snap, "api", snapshot.Found, []int32{80}, kubetest.ReadyEndpoints(0, 2))
+				backend.Backends = []*snapshot.Pod{
+					unreadyBackendSnap("api-abc"), unreadyBackendSnap("api-def"),
+				}
+				kubetest.IngressBackend(snap, "admin", snapshot.Missing, nil, snapshot.EndpointSet{})
+				return analyze.IngressReport(context.Background(), snap)
+			},
+		},
+		{
+			name: "pvc_storageclass_missing",
+			report: func(t *testing.T) *diagnosis.Report {
+				snap := kubetest.PVCSnap(kubetest.Claim("postgres-data").Namespace("prod").
+					StorageClass("premium-ssd").Age(35 * time.Minute).Build())
+				snap.Class = kubetest.ClassInfo("premium-ssd", "", true, snapshot.Missing)
+				snap.Consumers = []*snapshot.Pod{kubetest.Snap(kubetest.Pod("postgres-0").Namespace("prod").
+					Phase(corev1.PodPending).Container(kubetest.Container("postgres").NoStatus()).Build())}
+				return analyze.PVCReport(context.Background(), snap)
 			},
 		},
 	}

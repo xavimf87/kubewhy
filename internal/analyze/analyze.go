@@ -17,6 +17,14 @@ func Analyze(ctx context.Context, client *kube.Client, kind kube.Kind, namespace
 	switch kind {
 	case kube.KindPod:
 		return Pod(ctx, client, namespace, name)
+	case kube.KindService:
+		return Service(ctx, client, namespace, name)
+	case kube.KindDeployment:
+		return Deployment(ctx, client, namespace, name)
+	case kube.KindIngress:
+		return Ingress(ctx, client, namespace, name)
+	case kube.KindPVC:
+		return PVC(ctx, client, namespace, name)
 	default:
 		return nil, &UnsupportedKindError{Kind: kind}
 	}
@@ -30,4 +38,18 @@ type UnsupportedKindError struct {
 
 func (e *UnsupportedKindError) Error() string {
 	return string(e.Kind) + " diagnostics are not implemented yet in this build of KubeWhy."
+}
+
+// headline renders the one-line verdict shared by every kind.
+func headline(ref diagnosis.ResourceRef, status diagnosis.Status) string {
+	switch status {
+	case diagnosis.StatusUnhealthy:
+		return ref.String() + " is unhealthy"
+	case diagnosis.StatusDegraded:
+		return ref.String() + " is degraded"
+	case diagnosis.StatusUnknown:
+		return ref.String() + " could not be fully analysed"
+	default:
+		return ref.String() + " appears healthy"
+	}
 }

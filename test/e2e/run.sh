@@ -18,7 +18,7 @@ set -euo pipefail
 NAMESPACE="${KUBEWHY_E2E_NAMESPACE:-kubewhy-e2e}"
 BINARY="${KUBEWHY_BINARY:-./bin/kubectl-why}"
 EXAMPLES="examples/broken"
-SETTLE_SECONDS="${KUBEWHY_E2E_SETTLE:-45}"
+SETTLE_SECONDS="${KUBEWHY_E2E_SETTLE:-60}"
 
 fail() { printf '\033[31mFAIL\033[0m %s\n' "$*"; }
 pass() { printf '\033[32mok\033[0m   %s\n' "$*"; }
@@ -58,46 +58,56 @@ info "waiting ${SETTLE_SECONDS}s for the cluster to report"
 sleep "$SETTLE_SECONDS"
 echo
 
-# scenario <pod> <expected exit code> [expected diagnosis id]
+# scenario <kind> <name> <expected exit code> [expected diagnosis id]
 scenario() {
-  local pod="$1" want_code="$2" want_id="${3:-}"
+  local kind="$1" name="$2" want_code="$3" want_id="${4:-}"
   local output code
 
   set +e
-  output="$("$BINARY" pod "$pod" -n "$NAMESPACE" -o json 2>&1)"
+  output="$("$BINARY" "$kind" "$name" -n "$NAMESPACE" -o json 2>&1)"
   code=$?
   set -e
 
   if [[ "$code" != "$want_code" ]]; then
-    fail "$pod: exit code $code, want $want_code"
+    fail "$kind/$name: exit code $code, want $want_code"
     info "$output"
     failures=$((failures + 1))
     return
   fi
   if [[ -n "$want_id" ]] && ! grep -q "\"$want_id\"" <<<"$output"; then
-    fail "$pod: expected diagnosis $want_id"
+    fail "$kind/$name: expected diagnosis $want_id"
     info "$(grep -o '"id": "[A-Z_]*"' <<<"$output" | sort -u | tr '\n' ' ')"
     failures=$((failures + 1))
     return
   fi
-  pass "$pod${want_id:+ → $want_id}"
+  pass "$kind/$name${want_id:+ → $want_id}"
 }
 
-scenario healthy-demo             0
-scenario oom-demo                 1 POD_OOM_KILLED
-scenario crash-loop-demo          1 POD_CRASH_LOOP
-scenario command-not-found-demo   1 POD_CRASH_LOOP
-scenario image-pull-demo          1 POD_IMAGE_PULL_FAILED
-scenario unschedulable-cpu-demo   1 POD_UNSCHEDULABLE_CPU
-scenario node-selector-demo       1 POD_UNSCHEDULABLE_NODE_AFFINITY
-scenario missing-configmap-demo   1 POD_MISSING_CONFIGMAP
-scenario missing-secret-demo      1 POD_MISSING_SECRET
-scenario readiness-probe-demo     1 POD_READINESS_PROBE_FAILED
-scenario init-container-demo      1 POD_INIT_CONTAINER_FAILED
-scenario pvc-demo                 1 POD_PVC_NOT_BOUND
+scenario pod healthy-demo             0
+scenario pod oom-demo                 1 POD_OOM_KILLED
+scenario pod crash-loop-demo          1 POD_CRASH_LOOP
+scenario pod command-not-found-demo   1 POD_CRASH_LOOP
+scenario pod image-pull-demo          1 POD_IMAGE_PULL_FAILED
+scenario pod unschedulable-cpu-demo   1 POD_UNSCHEDULABLE_CPU
+scenario pod node-selector-demo       1 POD_UNSCHEDULABLE_NODE_AFFINITY
+scenario pod missing-configmap-demo   1 POD_MISSING_CONFIGMAP
+scenario pod missing-secret-demo      1 POD_MISSING_SECRET
+scenario pod readiness-probe-demo     1 POD_READINESS_PROBE_FAILED
+scenario pod init-container-demo      1 POD_INIT_CONTAINER_FAILED
+scenario pod pvc-demo                 1 POD_PVC_NOT_BOUND
+
+scenario pvc kubewhy-data             1 PVC_STORAGECLASS_NOT_FOUND
+
+scenario svc orphan-service-demo      1 SERVICE_NO_MATCHING_PODS
+scenario svc payments-demo            1 SERVICE_NO_READY_ENDPOINTS
+
+scenario deploy checkout-demo         1 POD_OOM_KILLED
+scenario deploy payments-demo         1 DEPLOYMENT_UNAVAILABLE_REPLICAS
+
+scenario ing api-demo                 1 INGRESS_SERVICE_NOT_FOUND
 
 # A resource that does not exist has its own exit code.
-scenario ghost-demo               3
+scenario pod ghost-demo               3
 
 echo
 if (( failures > 0 )); then

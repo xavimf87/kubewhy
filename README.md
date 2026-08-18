@@ -54,6 +54,37 @@ Owned by
 
 That is one command instead of `get`, `describe`, `get events`, `get rs`, `get deployment` and a mental join of all of them.
 
+It follows relationships too. Ask about a Service, and it diagnoses the Pods behind it — collapsing identical failures instead of repeating them:
+
+```console
+$ kubectl why service payments -n prod
+
+✗ Service/payments is unhealthy
+
+ROOT CAUSE
+  Container "api" is failing its readiness probe (3 of 3 Pods)
+
+  A container that fails its readiness probe is removed from the endpoints of
+  every Service that selects this Pod, so it receives no traffic. Kubernetes
+  reports that the probe failed; the reason the application answered that way is
+  in its own logs.
+
+  Evidence
+    reason                 Unhealthy (x37)
+      Readiness probe failed: HTTP probe failed with statuscode: 503
+    readinessProbe         http GET /healthz on port 8080
+    readinessProbe.timing  delay 5s, period 10s, timeout 1s, failureThreshold 3
+
+CONSEQUENCE
+  The Service has no ready endpoints, so it accepts no traffic
+
+Backends
+  Matching Pods    3
+  Ready endpoints  0 of 3  from EndpointSlice
+```
+
+The same walk happens for an Ingress (`Ingress → Service → port → EndpointSlice → Pods`) and for a Deployment. One rule set, applied wherever it is relevant.
+
 ---
 
 ## Why KubeWhy?
@@ -146,13 +177,13 @@ kubectl why version
 
 ## Supported resources
 
-| Resource | Aliases | Status |
+| Resource | Aliases | What it correlates |
 | --- | --- | --- |
-| Pod | `pods`, `po` | ✅ Implemented |
-| Service | `services`, `svc` | 🚧 Next milestone |
-| Deployment | `deployments`, `deploy` | 🚧 Next milestone |
-| Ingress | `ingresses`, `ing` | 🚧 Next milestone |
-| PersistentVolumeClaim | `persistentvolumeclaims`, `pvc` | 🚧 Next milestone |
+| Pod | `pods`, `po` | Container states, conditions, events, ownership, node, mounted claims, referenced config |
+| Service | `services`, `svc` | Selector, matching Pods, EndpointSlices, ports — and the Pod rules over its backends |
+| Deployment | `deployments`, `deploy` | Replica counts, conditions, ReplicaSets — and the Pod rules over its Pods, aggregated |
+| Ingress | `ingresses`, `ing` | Ingress → Service → port → EndpointSlice → Pods, plus the ingress class |
+| PersistentVolumeClaim | `persistentvolumeclaims`, `pvc` | Phase, storage class and binding mode, provisioning events, consuming Pods |
 
 Quality over coverage: a resource appears here only when its diagnoses are worth trusting.
 
@@ -187,6 +218,50 @@ Every finding carries a **stable identifier**, a **severity** and a **confidence
 | `POD_PVC_NOT_BOUND` | A claim that has not bound — and, when it uses `WaitForFirstConsumer`, why that is expected rather than broken. |
 | `POD_NODE_NOT_READY` | The Pod's node is not reporting Ready. |
 | `POD_NOT_READY` | The Pod is not ready and **no rule could explain it**. KubeWhy says so instead of inventing a cause. |
+
+### Service
+
+| Identifier | What it detects |
+| --- | --- |
+| `SERVICE_NO_MATCHING_PODS` | The selector matches no Pod in the namespace. |
+| `SERVICE_NO_READY_ENDPOINTS` | Backends exist but none is receiving traffic — with the Pod findings that explain why. |
+| `SERVICE_SOME_ENDPOINTS_NOT_READY` | Only part of the backends are serving. |
+| `SERVICE_NO_ENDPOINTS_WITHOUT_SELECTOR` | A selector-less Service whose endpoints nothing has published. |
+| `SERVICE_TARGET_PORT_NOT_FOUND` | A named `targetPort` that no backend Pod declares. |
+
+### Deployment
+
+| Identifier | What it detects |
+| --- | --- |
+| `DEPLOYMENT_UNAVAILABLE_REPLICAS` | Fewer available replicas than requested — with the Pod failures aggregated, not repeated once per Pod. |
+| `DEPLOYMENT_PROGRESS_DEADLINE_EXCEEDED` | A rollout that ran past its deadline. |
+| `DEPLOYMENT_REPLICA_FAILURE` | Pods that were rejected before they ever ran, with the API server's reason. |
+| `DEPLOYMENT_ROLLOUT_IN_PROGRESS` | A rollout happening right now, so a replica gap is not mistaken for a fault. |
+| `DEPLOYMENT_SCALED_TO_ZERO` / `DEPLOYMENT_PAUSED` | States the Deployment is in on purpose. |
+
+### Ingress
+
+| Identifier | What it detects |
+| --- | --- |
+| `INGRESS_SERVICE_NOT_FOUND` | A backend Service that does not exist. |
+| `INGRESS_SERVICE_PORT_NOT_FOUND` | A port the backend Service does not expose. |
+| `INGRESS_SERVICE_NO_ENDPOINTS` | A backend that publishes no ready endpoints — with the Pods behind it diagnosed. |
+| `INGRESS_CLASS_NOT_FOUND` / `INGRESS_NO_CLASS` | No controller is going to serve this Ingress. |
+| `INGRESS_NO_ADDRESS` | Nothing has published an address (reported at `possible` confidence — the API does not say why). |
+| `INGRESS_NO_RULES` | An Ingress with nothing to route. |
+
+### PersistentVolumeClaim
+
+| Identifier | What it detects |
+| --- | --- |
+| `PVC_STORAGECLASS_NOT_FOUND` | The requested StorageClass does not exist. |
+| `PVC_NO_DEFAULT_STORAGECLASS` | No class named, and the cluster has no default. |
+| `PVC_PROVISIONING_FAILED` | The storage driver's own failure, relayed verbatim. |
+| `PVC_NO_MATCHING_VOLUME` | Nothing could be bound to the claim. |
+| `PVC_WAITING_FOR_CONSUMER` | A `WaitForFirstConsumer` claim waiting on purpose — reported as expected, not broken. |
+| `PVC_NO_CONSUMER` | A `WaitForFirstConsumer` claim no Pod mounts, so nothing will ever trigger binding. |
+| `PVC_LOST` | The volume the claim was bound to is gone. |
+| `PVC_PENDING` | Not bound, and **no rule could explain it**. |
 
 Each rule is documented under [`docs/rules/`](docs/rules/): what it detects, the evidence it uses, its confidence, and its limitations.
 
@@ -306,13 +381,13 @@ A missing permission on a *related* object degrades the report; it does not prod
 
 ## Roadmap
 
-**v0.1 — in progress**
+**v0.1 — feature complete, not yet released**
 
 - [x] Pod diagnostics, text and JSON output, exit codes, RBAC degradation
-- [ ] Service diagnostics (selector, EndpointSlices, readiness)
-- [ ] Deployment diagnostics (rollouts, aggregated Pod failures)
-- [ ] Ingress diagnostics (Ingress → Service → EndpointSlice → Pod)
-- [ ] PersistentVolumeClaim diagnostics
+- [x] Service diagnostics (selector, EndpointSlices, readiness, named ports)
+- [x] Deployment diagnostics (rollouts, conditions, aggregated Pod failures)
+- [x] Ingress diagnostics (Ingress → Service → port → EndpointSlice → Pod)
+- [x] PersistentVolumeClaim diagnostics (storage class, binding mode, provisioning)
 - [ ] Release binaries and Krew submission
 
 **Later, deliberately not now**

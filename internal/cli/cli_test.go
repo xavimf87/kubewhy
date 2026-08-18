@@ -85,15 +85,20 @@ func TestExitCodes(t *testing.T) {
 	}
 }
 
-// Kinds KubeWhy resolves but cannot diagnose yet must say so plainly rather
-// than pretending the resource is healthy.
-func TestUnsupportedKindIsHonest(t *testing.T) {
-	code, _, stderr := run(t, nil, nil, "service", "payments")
-	if code != ExitError {
-		t.Errorf("exit code = %d, want %d", code, ExitError)
-	}
-	if !strings.Contains(stderr, "not implemented yet") {
-		t.Errorf("stderr = %q", stderr)
+// Every resource the CLI accepts must actually be diagnosable. A kind that
+// resolves but has no analyzer would fail with a configuration error instead
+// of the expected not-found, which is what this asserts.
+func TestEveryResolvableKindIsAnalysable(t *testing.T) {
+	for _, alias := range kube.KindAliases() {
+		t.Run(alias, func(t *testing.T) {
+			code, _, stderr := run(t, nil, nil, alias, "does-not-exist")
+			if code != ExitNotFound {
+				t.Errorf("exit code = %d, want %d (stderr: %s)", code, ExitNotFound, stderr)
+			}
+			if strings.Contains(stderr, "not implemented") {
+				t.Errorf("%q resolves but cannot be diagnosed: %s", alias, stderr)
+			}
+		})
 	}
 }
 

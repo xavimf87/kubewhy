@@ -1,0 +1,42 @@
+# A Service whose Pods exist but never become ready, because their readiness
+# probe targets a port nothing serves.
+# Expected: SERVICE_NO_READY_ENDPOINTS, with POD_READINESS_PROBE_FAILED
+# aggregated across the backends as the root cause.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments-demo
+  labels: { app: kubewhy-demo, case: service-no-endpoints }
+spec:
+  replicas: 3
+  selector:
+    matchLabels: { app: payments-demo }
+  template:
+    metadata:
+      labels: { app: payments-demo }
+    spec:
+      containers:
+        - name: api
+          image: busybox:1.36
+          command: ["sh", "-c", "sleep 3600"]
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payments-demo
+  labels: { app: kubewhy-demo, case: service-no-endpoints }
+spec:
+  selector: { app: payments-demo }
+  ports:
+    - port: 80
+      targetPort: http

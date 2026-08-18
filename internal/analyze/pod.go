@@ -48,20 +48,12 @@ func PodReport(ctx context.Context, snap *snapshot.Pod) *diagnosis.Report {
 }
 
 func podHeadline(snap *snapshot.Pod, status diagnosis.Status) string {
-	ref := snap.Ref().String()
+	// A Pod that ran to completion is not "healthy", it is finished, and
+	// saying so avoids implying that something is still running.
 	if snap.Pod.Status.Phase == corev1.PodSucceeded && status != diagnosis.StatusUnhealthy {
-		return ref + " completed successfully"
+		return snap.Ref().String() + " completed successfully"
 	}
-	switch status {
-	case diagnosis.StatusUnhealthy:
-		return ref + " is unhealthy"
-	case diagnosis.StatusDegraded:
-		return ref + " is running with warnings"
-	case diagnosis.StatusUnknown:
-		return ref + " could not be fully analysed"
-	default:
-		return ref + " appears healthy"
-	}
+	return headline(snap.Ref(), status)
 }
 
 func addPodStatusSection(report *diagnosis.Report, snap *snapshot.Pod) {

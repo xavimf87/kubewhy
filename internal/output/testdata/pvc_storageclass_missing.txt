@@ -1,0 +1,31 @@
+✗ PersistentVolumeClaim/postgres-data is unhealthy
+
+ROOT CAUSE
+  StorageClass "premium-ssd" does not exist
+
+  The claim asks for storage class "premium-ssd", and the API server reports
+  that no such class exists. No provisioner will act on the claim, so it stays
+  Pending indefinitely.
+
+  Evidence
+    spec.storageClassName     premium-ssd
+    storageclass/premium-ssd  NotFound
+
+  Possible causes
+    • the class name is misspelled, or was written for a different cluster
+    • the storage driver that provides this class is not installed here
+
+  Suggested action
+    Use one of the classes the cluster offers, or install the driver that
+    provides this one.
+      kubectl get storageclasses
+
+Claim
+  Phase          Pending
+  Requested      10Gi
+  Access modes   ReadWriteOnce
+  Storage class  premium-ssd  does not exist
+  Age            35m
+
+Used by
+  postgres-0  Pending  1h old

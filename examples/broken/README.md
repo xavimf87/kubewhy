@@ -12,6 +12,10 @@ kubectl create namespace kubewhy-demo
 kubectl apply -n kubewhy-demo -f examples/broken/oom.yaml
 sleep 30                                    # give the kubelet time to report
 kubectl why pod oom-demo -n kubewhy-demo
+
+kubectl apply -n kubewhy-demo -f examples/broken/service-no-endpoints.yaml
+sleep 45
+kubectl why service payments-demo -n kubewhy-demo
 ```
 
 Clean up with:
@@ -33,6 +37,10 @@ kubectl delete namespace kubewhy-demo
 | `readiness-probe.yaml` | The readiness probe targets a port nothing listens on. | `POD_READINESS_PROBE_FAILED` |
 | `init-container.yaml` | The init container fails, so the Pod never starts. | `POD_INIT_CONTAINER_FAILED` |
 | `pvc-missing-storageclass.yaml` | The claim asks for a storage class that does not exist. | `POD_PVC_NOT_BOUND` and `POD_UNSCHEDULABLE_VOLUME` |
+| `service-selector.yaml` | A Service selecting a workload that does not exist. | `SERVICE_NO_MATCHING_PODS` |
+| `service-no-endpoints.yaml` | Three backends that never become ready. | `SERVICE_NO_READY_ENDPOINTS`, caused by `POD_READINESS_PROBE_FAILED` |
+| `deployment-oom.yaml` | Three replicas dying the same way. | `POD_OOM_KILLED` as "3 of 3 Pods", then `DEPLOYMENT_UNAVAILABLE_REPLICAS` |
+| `ingress-missing-service.yaml` | An Ingress routing to a Service that does not exist. | `INGRESS_SERVICE_NOT_FOUND` |
 | `healthy.yaml` | Nothing. It is the control case. | No findings |
 
 The last one matters as much as the rest: a tool that finds a problem everywhere is as useless as one that finds none.

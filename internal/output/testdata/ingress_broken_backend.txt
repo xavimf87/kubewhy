@@ -1,0 +1,70 @@
+✗ Ingress/api is unhealthy
+
+ROOT CAUSE
+  Container "api" is failing its readiness probe (2 of 2 Pods)
+
+  A container that fails its readiness probe is removed from the endpoints of
+  every Service that selects this Pod, so it receives no traffic. Kubernetes
+  reports that the probe failed; the reason the application answered that way is
+  in its own logs.
+
+  Evidence
+    reason                 Unhealthy
+      Readiness probe failed: HTTP probe failed with statuscode: 503
+    readinessProbe         http GET /healthz on port 8080
+    readinessProbe.timing  delay 5s, period 10s, timeout 1s, failureThreshold 3
+
+  Possible causes
+    • the application is not listening on the probed port or path yet
+    • the application takes longer to answer than the probe allows
+    • the probe points at a port or path the application does not serve
+
+  Suggested action
+    Compare the probe's target with what the application actually serves, and
+    check the container's logs around the failures.
+      kubectl logs api-abc -n prod -c api
+
+ALSO DETECTED
+  Service "admin" does not exist, so its routes lead nowhere
+
+  The Ingress routes to Service "admin", and the API server reports that no such
+  Service exists in namespace "prod". A controller cannot build a backend for
+  it.
+
+  Evidence
+    route          api.example.com/admin -> Service/admin:80
+    service/admin  NotFound
+
+  Possible causes
+    • the Service was renamed or deleted
+    • the Ingress and the Service are in different namespaces, which an Ingress
+      cannot cross
+
+  Suggested action
+    Create the Service, or correct the backend name in the Ingress.
+      kubectl get services -n prod
+
+CONSEQUENCE
+  Service "api" has no ready endpoints, so its routes return errors
+
+  The Ingress and the Service are configured correctly, but the Service
+  currently routes to nothing. Requests that reach these routes have no backend
+  to be served by.
+
+  Evidence
+    route              api.example.com/ -> Service/api:80
+    readyEndpoints     0
+    notReadyEndpoints  2
+    matchingPods       2
+
+  Suggested action
+    Ask KubeWhy about the Service itself for the full endpoint picture.
+      kubectl why service api -n prod
+
+Ingress
+  Class    nginx  exists
+  Address  lb.example.com
+
+Routes
+  api.example.com/       Service/api:80    0 of 2 endpoints ready
+  api.example.com/admin  Service/admin:80  Service not found

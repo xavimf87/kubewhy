@@ -6,6 +6,8 @@
 package pod
 
 import (
+	"context"
+
 	"github.com/xavimf87/kubewhy/internal/diagnosis"
 	"github.com/xavimf87/kubewhy/internal/snapshot"
 )
@@ -65,4 +67,25 @@ func Catalog() []diagnosis.RuleMeta {
 		out = append(out, r.Meta())
 	}
 	return out
+}
+
+// Aggregated runs the Pod rules over several Pods and collapses identical
+// findings into one per distinct problem.
+//
+// It exists so that a workload or a Service can report "3 of 3 Pods are
+// crashing for the same reason" without reimplementing a single line of Pod
+// troubleshooting logic.
+func Aggregated(ctx context.Context, pods []*snapshot.Pod) []diagnosis.Diagnosis {
+	if len(pods) == 0 {
+		return nil
+	}
+	var all []diagnosis.Diagnosis
+	for _, pod := range pods {
+		found := diagnosis.Evaluate(ctx, Rules(), pod)
+		if len(found) == 0 {
+			found = Fallback(pod)
+		}
+		all = append(all, found...)
+	}
+	return diagnosis.AggregateByRule(all, len(pods))
 }

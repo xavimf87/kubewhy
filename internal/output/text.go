@@ -113,7 +113,7 @@ func (r *textRenderer) diagnosis(d diagnosis.Diagnosis, first bool, shown map[st
 		r.blank()
 		r.line("  Possible causes")
 		for _, cause := range d.PossibleCauses {
-			r.paragraph(r.style.bullet()+" "+cause, "    ")
+			r.bullet(cause, "    ")
 		}
 	}
 
@@ -193,6 +193,14 @@ func (r *textRenderer) evidence(items []diagnosis.Evidence) {
 	}
 }
 
+// pad returns n spaces, or none when n is negative.
+func pad(n int) string {
+	if n <= 0 {
+		return ""
+	}
+	return strings.Repeat(" ", n)
+}
+
 func evidenceLabel(e diagnosis.Evidence) string {
 	if e.Field != "" {
 		return e.Field
@@ -202,17 +210,21 @@ func evidenceLabel(e diagnosis.Evidence) string {
 
 func (r *textRenderer) section(s diagnosis.Section) {
 	r.line(r.style.bold(s.Title))
-	width := 0
+	keyWidth, valueWidth := 0, 0
 	for _, item := range s.Items {
-		if n := utf8.RuneCountInString(item.Key); n > width {
-			width = n
+		if n := utf8.RuneCountInString(item.Key); n > keyWidth {
+			keyWidth = n
+		}
+		// Values are only padded when a note follows them, so a plain
+		// key/value section keeps no trailing space.
+		if n := utf8.RuneCountInString(item.Value); item.Note != "" && n > valueWidth {
+			valueWidth = n
 		}
 	}
 	for _, item := range s.Items {
-		padding := strings.Repeat(" ", width-utf8.RuneCountInString(item.Key))
-		line := "  " + item.Key + padding + "  " + item.Value
+		line := "  " + item.Key + pad(keyWidth-utf8.RuneCountInString(item.Key)) + "  " + item.Value
 		if item.Note != "" {
-			line += "  " + r.style.dim(item.Note)
+			line += pad(valueWidth-utf8.RuneCountInString(item.Value)) + "  " + r.style.dim(item.Note)
 		}
 		r.line(line)
 	}
@@ -238,6 +250,21 @@ func (r *textRenderer) degradations(items []diagnosis.Degradation) {
 		r.blank()
 		r.line("  Kubernetes returned")
 		r.paragraph(orText(d.Detail, d.Reason), "    ")
+	}
+}
+
+// bullet writes a bulleted line, indenting continuation lines under the text
+// rather than under the bullet.
+func (r *textRenderer) bullet(text, indent string) {
+	marker := r.style.bullet() + " "
+	hanging := indent + strings.Repeat(" ", utf8.RuneCountInString(marker))
+	lines := wrap(text, r.style.Width-len(hanging))
+	for i, line := range lines {
+		if i == 0 {
+			r.line(indent + marker + line)
+			continue
+		}
+		r.line(hanging + line)
 	}
 }
 

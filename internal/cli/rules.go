@@ -8,7 +8,11 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/xavimf87/kubewhy/internal/diagnosis"
+	deploymentrules "github.com/xavimf87/kubewhy/internal/diagnosis/rules/deployment"
+	ingressrules "github.com/xavimf87/kubewhy/internal/diagnosis/rules/ingress"
 	podrules "github.com/xavimf87/kubewhy/internal/diagnosis/rules/pod"
+	pvcrules "github.com/xavimf87/kubewhy/internal/diagnosis/rules/pvc"
+	servicerules "github.com/xavimf87/kubewhy/internal/diagnosis/rules/service"
 )
 
 // newRulesCommand lists the diagnostic rules. KubeWhy's value depends on
@@ -50,5 +54,9 @@ type ruleGroup struct {
 func ruleGroups() []ruleGroup {
 	return []ruleGroup{
 		{Kind: "Pod", Rules: podrules.Catalog()},
+		{Kind: "Service", Rules: servicerules.Catalog()},
+		{Kind: "Deployment", Rules: deploymentrules.Catalog()},
+		{Kind: "Ingress", Rules: ingressrules.Catalog()},
+		{Kind: "PersistentVolumeClaim", Rules: pvcrules.Catalog()},
 	}
 }

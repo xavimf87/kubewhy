@@ -5,6 +5,11 @@ import (
 	"strings"
 	"time"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -61,3 +66,11 @@ func ptr(s string) *string { return &s }
 func asError(err error, target any) bool { return errors.As(err, target) }
 
 func contains(haystack, needle string) bool { return strings.Contains(haystack, needle) }
+
+// forbidResource makes the fake client deny one verb on one resource, which is
+// how the RBAC degradation paths are exercised.
+func forbidResource(clientset *fake.Clientset, verb, resource string) {
+	clientset.PrependReactor(verb, resource, func(k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, apierrors.NewForbidden(schema.GroupResource{Resource: resource}, "", nil)
+	})
+}

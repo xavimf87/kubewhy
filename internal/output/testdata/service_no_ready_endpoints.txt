@@ -1,0 +1,58 @@
+✗ Service/payments is unhealthy
+
+ROOT CAUSE
+  Container "api" is failing its readiness probe (3 of 3 Pods)
+
+  A container that fails its readiness probe is removed from the endpoints of
+  every Service that selects this Pod, so it receives no traffic. Kubernetes
+  reports that the probe failed; the reason the application answered that way is
+  in its own logs.
+
+  Evidence
+    reason                 Unhealthy
+      Readiness probe failed: HTTP probe failed with statuscode: 503
+    readinessProbe         http GET /healthz on port 8080
+    readinessProbe.timing  delay 5s, period 10s, timeout 1s, failureThreshold 3
+
+  Possible causes
+    • the application is not listening on the probed port or path yet
+    • the application takes longer to answer than the probe allows
+    • the probe points at a port or path the application does not serve
+
+  Suggested action
+    Compare the probe's target with what the application actually serves, and
+    check the container's logs around the failures.
+      kubectl logs payments-abc -n prod -c api
+
+CONSEQUENCE
+  The Service has no ready endpoints, so it accepts no traffic
+
+  Kubernetes only routes traffic to endpoints that report ready. A Pod is
+  removed from a Service's endpoints while it fails its readiness probe, while
+  it is starting, and while it is terminating.
+
+  Evidence
+    readyEndpoints     0
+    matchingPods       3
+    notReadyEndpoints  3
+
+  Suggested action
+    Look at the backend Pods: a Service with matching Pods and no ready
+    endpoints is almost always a readiness problem in the Pods themselves.
+
+Service
+  Type        ClusterIP
+  Cluster IP  10.96.0.10
+  Selector    app=payments
+
+Backends
+  Matching Pods    3
+  Ready endpoints  0 of 3  from EndpointSlice
+
+Backend Pods
+  payments-abc  NotReady  1h old
+  payments-def  NotReady  1h old
+  payments-ghi  NotReady  1h old
+
+Ports
+  80/TCP  targets 8080

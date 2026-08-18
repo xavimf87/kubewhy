@@ -20,6 +20,40 @@ Every finding KubeWhy produces has a stable identifier. Identifiers are public A
 | The Pod's node is not ready | `POD_NODE_NOT_READY` | [POD_NODE_NOT_READY.md](POD_NODE_NOT_READY.md) |
 | *(fallback, not a rule)* | `POD_NOT_READY` | [POD_NOT_READY.md](POD_NOT_READY.md) |
 
+## Service
+
+| Rule | Identifiers | Page |
+| --- | --- | --- |
+| The Service selects no Pods | `SERVICE_NO_MATCHING_PODS`, `SERVICE_NO_ENDPOINTS_WITHOUT_SELECTOR` | [SERVICE_NO_MATCHING_PODS.md](SERVICE_NO_MATCHING_PODS.md) |
+| The Service has no ready endpoints | `SERVICE_NO_READY_ENDPOINTS`, `SERVICE_SOME_ENDPOINTS_NOT_READY` | [SERVICE_NO_READY_ENDPOINTS.md](SERVICE_NO_READY_ENDPOINTS.md) |
+| A named target port is not declared by the backend Pods | `SERVICE_TARGET_PORT_NOT_FOUND` | [SERVICE_TARGET_PORT_NOT_FOUND.md](SERVICE_TARGET_PORT_NOT_FOUND.md) |
+
+## Deployment
+
+| Rule | Identifiers | Page |
+| --- | --- | --- |
+| The Deployment has fewer available Pods than it asks for | `DEPLOYMENT_UNAVAILABLE_REPLICAS` | [DEPLOYMENT_UNAVAILABLE_REPLICAS.md](DEPLOYMENT_UNAVAILABLE_REPLICAS.md) |
+| The Deployment is not meant to be running | `DEPLOYMENT_SCALED_TO_ZERO`, `DEPLOYMENT_PAUSED` | [DEPLOYMENT_SCALED_TO_ZERO.md](DEPLOYMENT_SCALED_TO_ZERO.md) |
+| The Deployment controller reported a problem | `DEPLOYMENT_PROGRESS_DEADLINE_EXCEEDED`, `DEPLOYMENT_REPLICA_FAILURE`, `DEPLOYMENT_ROLLOUT_IN_PROGRESS` | [DEPLOYMENT_PROGRESS_DEADLINE_EXCEEDED.md](DEPLOYMENT_PROGRESS_DEADLINE_EXCEEDED.md) |
+
+## Ingress
+
+| Rule | Identifiers | Page |
+| --- | --- | --- |
+| An Ingress backend is broken | `INGRESS_SERVICE_NOT_FOUND`, `INGRESS_SERVICE_PORT_NOT_FOUND`, `INGRESS_SERVICE_NO_ENDPOINTS`, `INGRESS_NO_RULES` | [INGRESS_SERVICE_NOT_FOUND.md](INGRESS_SERVICE_NOT_FOUND.md) |
+| No controller is going to serve this Ingress | `INGRESS_CLASS_NOT_FOUND`, `INGRESS_NO_CLASS` | [INGRESS_CLASS_NOT_FOUND.md](INGRESS_CLASS_NOT_FOUND.md) |
+| No controller has published an address | `INGRESS_NO_ADDRESS` | [INGRESS_NO_ADDRESS.md](INGRESS_NO_ADDRESS.md) |
+
+## PersistentVolumeClaim
+
+| Rule | Identifiers | Page |
+| --- | --- | --- |
+| The claim's storage class is not usable | `PVC_STORAGECLASS_NOT_FOUND`, `PVC_NO_DEFAULT_STORAGECLASS` | [PVC_STORAGECLASS_NOT_FOUND.md](PVC_STORAGECLASS_NOT_FOUND.md) |
+| Provisioning or binding failed | `PVC_PROVISIONING_FAILED`, `PVC_NO_MATCHING_VOLUME` | [PVC_PROVISIONING_FAILED.md](PVC_PROVISIONING_FAILED.md) |
+| The claim binds only once a Pod uses it | `PVC_WAITING_FOR_CONSUMER`, `PVC_NO_CONSUMER` | [PVC_WAITING_FOR_CONSUMER.md](PVC_WAITING_FOR_CONSUMER.md) |
+| The claim lost its volume | `PVC_LOST` | [PVC_LOST.md](PVC_LOST.md) |
+| *(fallback, not a rule)* | `PVC_PENDING` | [PVC_PENDING.md](PVC_PENDING.md) |
+
 ## Writing a page
 
 Use [`_TEMPLATE.md`](_TEMPLATE.md). Every page states its limitations, because a rule that cannot say where it stops cannot be trusted.

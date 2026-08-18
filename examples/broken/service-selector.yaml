@@ -1,0 +1,13 @@
+# A Service whose selector matches no Pod at all.
+# Expected: SERVICE_NO_MATCHING_PODS.
+apiVersion: v1
+kind: Service
+metadata:
+  name: orphan-service-demo
+  labels: { app: kubewhy-demo, case: service-selector }
+spec:
+  selector:
+    app: a-workload-that-does-not-exist
+  ports:
+    - port: 80
+      targetPort: 8080

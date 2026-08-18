@@ -1,0 +1,15 @@
+✓ Service/payments appears healthy
+
+Service
+  Type        ClusterIP
+  Cluster IP  10.96.0.10
+  Selector    app=payments
+
+Backends
+  Matching Pods    3
+  Ready endpoints  3 of 3  from EndpointSlice
+
+Ports
+  80/TCP  targets 8080
+
+No obvious Kubernetes-level issue detected.
