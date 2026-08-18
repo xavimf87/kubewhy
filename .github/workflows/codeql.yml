@@ -19,6 +19,11 @@ permissions:
 jobs:
   analyse:
     name: Analyse
+    # Code scanning is free on public repositories and needs GitHub Advanced
+    # Security on private ones. Running the analysis only to fail at the upload
+    # would put a permanent red cross on every push and teach people to ignore
+    # it, so it waits until it can report somewhere.
+    if: github.event.repository.private != true
     runs-on: ubuntu-latest
     permissions:
       security-events: write

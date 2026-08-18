@@ -1,8 +1,8 @@
 # Build output
 /bin/
-# GoReleaser writes here; the Krew manifest lives here on purpose.
-/dist/*
-!/dist/krew/
+# GoReleaser's output. `release --clean` wipes it, so nothing tracked may live
+# here: the Krew manifest is in krew/ for exactly that reason.
+/dist/
 # Anchored to the repository root. Without the slash these also match the
 # cmd/kubectl-why directory, which silently excluded the program's entrypoint
 # from the repository.

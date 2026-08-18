@@ -7,7 +7,7 @@
 #   1. Publish a release so the archive URLs below resolve.
 #   2. Replace every sha256 with the value from the release's checksums.txt.
 #   3. Replace the version with the released tag.
-#   4. Validate with:  kubectl krew install --manifest=dist/krew/why.yaml
+#   4. Validate with:  kubectl krew install --manifest=krew/why.yaml
 apiVersion: krew.googlecontainertools.github.com/v1alpha2
 kind: Plugin
 metadata:
