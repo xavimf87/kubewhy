@@ -29,6 +29,13 @@ func evaluateMounts(_ context.Context, snap *snapshot.Pod) []diagnosis.Diagnosis
 	if !ok {
 		return nil
 	}
+	// A mount failure blocks a container from starting. Once every container
+	// has started, the mounts plainly succeeded, and the event is history
+	// that would otherwise be reported as a current fault for as long as
+	// Kubernetes keeps it.
+	if !anyContainerWaiting(snap) {
+		return nil
+	}
 
 	d := diagnosis.Diagnosis{
 		ID:         IDFailedMount,
@@ -79,6 +86,16 @@ func evaluateMounts(_ context.Context, snap *snapshot.Pod) []diagnosis.Diagnosis
 		}
 	}
 	return []diagnosis.Diagnosis{d}
+}
+
+// anyContainerWaiting reports whether some container has not started yet.
+func anyContainerWaiting(snap *snapshot.Pod) bool {
+	for _, container := range snap.Containers() {
+		if container.Waiting() != nil {
+			return true
+		}
+	}
+	return false
 }
 
 // quotedAfter returns the quoted token that follows a keyword in a kubelet

@@ -13,6 +13,7 @@ ROOT CAUSE
       Readiness probe failed: HTTP probe failed with statuscode: 503
     readinessProbe         http GET /healthz on port 8080
     readinessProbe.timing  delay 5s, period 10s, timeout 1s, failureThreshold 3
+    lastSeen               1m ago
 
   Possible causes
     • the application is not listening on the probed port or path yet

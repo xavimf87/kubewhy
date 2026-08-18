@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/xavimf87/kubewhy/internal/diagnosis"
+	"github.com/xavimf87/kubewhy/internal/format"
 	"github.com/xavimf87/kubewhy/internal/snapshot"
 )
 
@@ -69,56 +71,87 @@ func evaluateProbes(_ context.Context, snap *snapshot.Pod) []diagnosis.Diagnosis
 	return out
 }
 
+// recentProbeWindow is how long a probe failure stays current. Events live for
+// about an hour, so without this a burst of failures from a restart earlier in
+// the day is still reported long after the container recovered.
+const recentProbeWindow = 10 * time.Minute
+
 func probeDiagnosis(snap *snapshot.Pod, ev snapshot.Event, kind, id string, container snapshot.Container, known bool) diagnosis.Diagnosis {
 	subject := "A container"
 	if known {
 		subject = fmt.Sprintf("Container %q", container.Name)
 	}
+	// Whether the failure is happening now decides both the severity and the
+	// tense. Reporting an hour-old burst as "is failing" on a container that
+	// has been serving ever since would be a plain false statement.
+	failingNow := known && !container.Ready()
+	recent := snap.Now.Sub(ev.LastSeen) <= recentProbeWindow
+	age := format.Duration(snap.Now.Sub(ev.LastSeen))
 
 	d := diagnosis.Diagnosis{
 		ID:         id,
 		Subject:    snap.Ref(),
 		Component:  container.Name,
 		Confidence: diagnosis.ConfidenceCertain,
-		Severity:   diagnosis.SeverityWarning,
-		Summary:    fmt.Sprintf("%s is failing its %s probe", subject, kind),
 		Evidence:   []diagnosis.Evidence{eventEvidence(ev)},
+	}
+
+	switch {
+	case failingNow:
+		d.Severity = diagnosis.SeverityCritical
+		d.Summary = fmt.Sprintf("%s is failing its %s probe", subject, kind)
+	case recent:
+		d.Severity = diagnosis.SeverityWarning
+		d.Summary = fmt.Sprintf("%s has been failing its %s probe, and is passing again now", subject, kind)
+	default:
+		// Old failures on a container that has recovered are history. They are
+		// worth showing, and they must not colour the verdict.
+		d.Severity = diagnosis.SeverityInfo
+		d.Summary = fmt.Sprintf("%s failed its %s probe, most recently %s ago, and has been passing since",
+			subject, kind, age)
 	}
 
 	switch kind {
 	case "readiness":
-		d.Explanation = "A container that fails its readiness probe is removed from the endpoints of every " +
-			"Service that selects this Pod, so it receives no traffic. Kubernetes reports that the probe " +
-			"failed; the reason the application answered that way is in its own logs."
-		if known && !container.Ready() {
-			d.Severity = diagnosis.SeverityCritical
-		}
+		d.Explanation = "A container that fails its readiness probe is removed from the endpoints of " +
+			"every Service that selects this Pod, so it receives no traffic. Kubernetes reports that the " +
+			"probe failed; the reason the application answered that way is in its own logs."
 	case "liveness":
 		d.Explanation = "A container that fails its liveness probe is killed and restarted by the kubelet. " +
 			"That is why restarts can appear without the process itself crashing."
-		if container.Restarts() > 0 {
+		if container.Restarts() > 0 && recent {
 			d.Severity = diagnosis.SeverityCritical
 		}
 	case "startup":
 		d.Explanation = "A startup probe holds back the liveness and readiness checks until the container " +
 			"reports that it has started. While it keeps failing, the container is restarted once the " +
 			"probe's failure threshold is reached."
-		d.Severity = diagnosis.SeverityCritical
+		if failingNow || recent {
+			d.Severity = diagnosis.SeverityCritical
+		}
 	}
 
-	d.PossibleCauses = []string{
-		"the application is not listening on the probed port or path yet",
-		"the application takes longer to answer than the probe allows",
-		"the probe points at a port or path the application does not serve",
+	if d.Severity == diagnosis.SeverityInfo {
+		d.Explanation += fmt.Sprintf(" These failures stopped %s ago, so they describe the Pod's history "+
+			"rather than its current state.", age)
+	} else {
+		d.PossibleCauses = []string{
+			"the application is not listening on the probed port or path yet",
+			"the application takes longer to answer than the probe allows",
+			"the probe points at a port or path the application does not serve",
+		}
+		d.Suggestions = []diagnosis.Suggestion{{
+			Description: "Compare the probe's target with what the application actually serves, and check the container's logs around the failures.",
+			Commands:    []string{logsCommand(snap, container.Name, false)},
+		}}
 	}
-	d.Suggestions = []diagnosis.Suggestion{{
-		Description: "Compare the probe's target with what the application actually serves, and check the container's logs around the failures.",
-		Commands:    []string{logsCommand(snap, container.Name, false)},
-	}}
 
 	if known {
 		d.Evidence = append(d.Evidence, probeEvidence(kind, container)...)
 	}
+	d.Evidence = append(d.Evidence, diagnosis.Evidence{
+		Source: "event", Field: "lastSeen", Value: age + " ago",
+	})
 	return d
 }
 

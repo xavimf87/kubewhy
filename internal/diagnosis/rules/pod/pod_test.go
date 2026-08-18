@@ -633,3 +633,100 @@ func TestFlappingOOMStaysCritical(t *testing.T) {
 		t.Errorf("severity = %s, want critical while it is still cycling", d.Severity)
 	}
 }
+
+// Events live for about an hour, so a burst of probe failures from an earlier
+// restart is still visible long after the container recovered. Reporting that
+// as "is failing" would be a false statement about the present.
+func TestProbeFindingsRespectHowRecentTheFailureIs(t *testing.T) {
+	tests := []struct {
+		name         string
+		ready        bool
+		lastSeenAgo  time.Duration
+		wantSeverity diagnosis.Severity
+		wantSummary  string
+	}{
+		{
+			name: "failing right now", ready: false, lastSeenAgo: 30 * time.Second,
+			wantSeverity: diagnosis.SeverityCritical, wantSummary: "is failing its readiness probe",
+		},
+		{
+			name: "recovered moments ago", ready: true, lastSeenAgo: 2 * time.Minute,
+			wantSeverity: diagnosis.SeverityWarning, wantSummary: "is passing again now",
+		},
+		{
+			name: "recovered an hour ago", ready: true, lastSeenAgo: time.Hour,
+			wantSeverity: diagnosis.SeverityInfo, wantSummary: "has been passing since",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			container := kubetest.Container("api").HTTPReadiness("/healthz", 8080)
+			status := corev1.ConditionTrue
+			if !tt.ready {
+				container = container.NotReady()
+				status = corev1.ConditionFalse
+			}
+			snap := kubetest.Snap(kubetest.Pod("api").
+				Condition(corev1.PodReady, status, "", "").
+				Container(container).Build())
+
+			event := kubetest.ForContainer(kubetest.Event("Warning", "Unhealthy",
+				"Readiness probe failed: HTTP probe failed with statuscode: 503"), "api")
+			event.LastSeen = kubetest.Now.Add(-tt.lastSeenAgo)
+			snap.Events = snapshot.Events{event}
+
+			d, ok := find(evaluate(snap), IDReadinessProbeFailed)
+			if !ok {
+				t.Fatal("expected a readiness probe finding")
+			}
+			if d.Severity != tt.wantSeverity {
+				t.Errorf("severity = %s, want %s", d.Severity, tt.wantSeverity)
+			}
+			if !strings.Contains(d.Summary, tt.wantSummary) {
+				t.Errorf("summary = %q, want it to contain %q", d.Summary, tt.wantSummary)
+			}
+		})
+	}
+}
+
+// An informational finding must not make a working Pod look degraded.
+func TestOldProbeFailuresLeaveThePodHealthy(t *testing.T) {
+	snap := kubetest.Snap(kubetest.Pod("api").Ready().
+		Container(kubetest.Container("api").HTTPReadiness("/healthz", 8080)).Build())
+	event := kubetest.ForContainer(kubetest.Event("Warning", "Unhealthy",
+		"Readiness probe failed: context deadline exceeded"), "api")
+	event.LastSeen = kubetest.Now.Add(-time.Hour)
+	snap.Events = snapshot.Events{event}
+
+	report := diagnosis.Report{Diagnoses: evaluate(snap)}
+	if got := report.DeriveStatus(); got != diagnosis.StatusHealthy {
+		t.Errorf("status = %s, want healthy: the container has been passing for an hour", got)
+	}
+}
+
+// A mount failure blocks a container from starting. Once every container is
+// running, the mounts succeeded and the event is history.
+func TestResolvedMountFailureIsNotReported(t *testing.T) {
+	event := kubetest.Event("Warning", "FailedMount",
+		`MountVolume.SetUp failed for volume "data" : timed out waiting for the condition`)
+
+	t.Run("still blocking", func(t *testing.T) {
+		snap := kubetest.Snap(kubetest.Pod("db").Phase(corev1.PodPending).
+			Container(kubetest.Container("db").Waiting("ContainerCreating", "")).Build())
+		snap.Events = snapshot.Events{event}
+
+		if got := ids(evaluate(snap)); !contains(got, IDFailedMount) {
+			t.Errorf("expected a mount finding while the container cannot start, got %v", got)
+		}
+	})
+
+	t.Run("resolved", func(t *testing.T) {
+		snap := kubetest.Snap(kubetest.Pod("db").Ready().Container(kubetest.Container("db")).Build())
+		snap.Events = snapshot.Events{event}
+
+		if got := ids(evaluate(snap)); contains(got, IDFailedMount) {
+			t.Errorf("a mount that plainly succeeded must not be reported: %v", got)
+		}
+	})
+}
