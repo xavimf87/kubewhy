@@ -69,16 +69,6 @@ type Report struct {
 	Inspected []string `json:"inspected,omitempty"`
 }
 
-// HasCritical reports whether any critical finding was recorded.
-func (r *Report) HasCritical() bool {
-	for _, d := range r.Diagnoses {
-		if d.Severity == SeverityCritical {
-			return true
-		}
-	}
-	return false
-}
-
 // AddSection appends a section when it carries at least one fact.
 func (r *Report) AddSection(s Section) {
 	if len(s.Items) == 0 && len(s.Tree) == 0 {

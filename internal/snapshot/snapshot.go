@@ -135,18 +135,6 @@ func (evs Events) Dedup() Events {
 	return out
 }
 
-// MessagesContain reports whether any event message contains the substring,
-// compared case-insensitively.
-func (evs Events) MessagesContain(substr string) bool {
-	needle := strings.ToLower(substr)
-	for _, e := range evs {
-		if strings.Contains(strings.ToLower(e.Message), needle) {
-			return true
-		}
-	}
-	return false
-}
-
 // Collection carries the bookkeeping shared by every snapshot: what could not
 // be read, and what was read.
 type Collection struct {

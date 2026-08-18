@@ -2,7 +2,6 @@ package collect
 
 import (
 	"context"
-	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
@@ -40,22 +39,9 @@ func endpointsFor(ctx context.Context, c *kube.Client, coll *snapshot.Collection
 
 func fromEndpointSlices(slices []discoveryv1.EndpointSlice) snapshot.EndpointSet {
 	set := snapshot.EndpointSet{Source: "EndpointSlice", Known: true}
-	seenPort := map[string]bool{}
 
 	for i := range slices {
 		slice := &slices[i]
-		for _, port := range slice.Ports {
-			key := portKey(port.Name, port.Port)
-			if seenPort[key] {
-				continue
-			}
-			seenPort[key] = true
-			set.Ports = append(set.Ports, snapshot.EndpointPort{
-				Name:     derefString(port.Name),
-				Port:     derefInt32(port.Port),
-				Protocol: string(derefProtocol(port.Protocol)),
-			})
-		}
 		for _, endpoint := range slice.Endpoints {
 			address := ""
 			if len(endpoint.Addresses) > 0 {
@@ -64,7 +50,6 @@ func fromEndpointSlices(slices []discoveryv1.EndpointSlice) snapshot.EndpointSet
 			set.Addresses = append(set.Addresses, snapshot.Endpoint{
 				Address:   address,
 				Ready:     derefBoolDefault(endpoint.Conditions.Ready, true),
-				Serving:   derefBoolDefault(endpoint.Conditions.Serving, true),
 				Node:      derefString(endpoint.NodeName),
 				TargetRef: targetRef(endpoint.TargetRef),
 			})
@@ -91,11 +76,6 @@ func legacyEndpointsFor(ctx context.Context, c *kube.Client, coll *snapshot.Coll
 	set.Known = true
 
 	for _, subset := range endpoints.Subsets {
-		for _, port := range subset.Ports {
-			set.Ports = append(set.Ports, snapshot.EndpointPort{
-				Name: port.Name, Port: port.Port, Protocol: string(port.Protocol),
-			})
-		}
 		for _, address := range subset.Addresses {
 			set.Addresses = append(set.Addresses, legacyAddress(address, true))
 		}
@@ -110,7 +90,6 @@ func legacyAddress(address corev1.EndpointAddress, ready bool) snapshot.Endpoint
 	return snapshot.Endpoint{
 		Address:   address.IP,
 		Ready:     ready,
-		Serving:   ready,
 		Node:      derefString(address.NodeName),
 		TargetRef: targetRef(address.TargetRef),
 	}
@@ -123,29 +102,11 @@ func targetRef(ref *corev1.ObjectReference) diagnosis.ResourceRef {
 	return diagnosis.ResourceRef{Kind: ref.Kind, Namespace: ref.Namespace, Name: ref.Name}
 }
 
-func portKey(name *string, port *int32) string {
-	return fmt.Sprintf("%s/%d", derefString(name), derefInt32(port))
-}
-
 func derefString(s *string) string {
 	if s == nil {
 		return ""
 	}
 	return *s
-}
-
-func derefInt32(i *int32) int32 {
-	if i == nil {
-		return 0
-	}
-	return *i
-}
-
-func derefProtocol(p *corev1.Protocol) corev1.Protocol {
-	if p == nil {
-		return corev1.ProtocolTCP
-	}
-	return *p
 }
 
 // derefBoolDefault reads an optional condition. An unset EndpointSlice

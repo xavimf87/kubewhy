@@ -13,6 +13,6 @@
 
 *.png       binary
 
-# Generated output; keep it out of pull request diffs by default.
-internal/output/testdata/*.txt linguist-generated=false
+# go.sum is noise in a review; the golden files deliberately are not, because
+# they are the product's user interface.
 go.sum      -diff

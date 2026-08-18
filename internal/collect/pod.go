@@ -133,14 +133,12 @@ func collectPodClaims(ctx context.Context, c *kube.Client, snap *snapshot.Pod) {
 		if entry.Exists == snapshot.Found {
 			entry.Claim = claim
 			entry.Phase = claim.Status.Phase
-			entry.VolumeName = claim.Spec.VolumeName
 			// The binding mode is only worth a request when the claim has not
 			// bound, because it decides whether Pending is a fault at all.
 			if claim.Status.Phase != corev1.ClaimBound {
 				class := storageClassInfo(ctx, c, &snap.Collection, claim)
 				entry.StorageClass = class.Name
 				entry.BindingMode = class.BindingMode
-				entry.ClassExists = class.Exists
 			}
 		}
 		snap.PVCs[name] = entry

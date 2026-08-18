@@ -54,7 +54,12 @@ lint: ## Run golangci-lint when it is installed
 		|| echo "golangci-lint is not installed; see https://golangci-lint.run"
 
 .PHONY: check
-check: fmt vet test ## Everything CI runs on a pull request
+check: fmt vet test scripts ## Everything CI runs on a pull request
+
+.PHONY: scripts
+scripts: ## Check the shell that decides releases
+	@for script in hack/*.sh test/e2e/*.sh; do bash -n "$$script" || exit 1; done
+	@hack/next-version.test.sh
 
 .PHONY: test-e2e
 test-e2e: build ## Run the end-to-end scenarios against the current context

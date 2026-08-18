@@ -2,7 +2,6 @@ package collect
 
 import (
 	"context"
-	"sort"
 	"time"
 
 	networkingv1 "k8s.io/api/networking/v1"
@@ -170,15 +169,4 @@ func collectIngressService(ctx context.Context, c *kube.Client, snap *snapshot.I
 		entry.Backends = backendSnapshots(ctx, c, &snap.Collection, pods.Items)
 	}
 	return entry
-}
-
-// ServiceNames returns the backend Service names in a stable order, for
-// deterministic reports.
-func ServiceNames(snap *snapshot.Ingress) []string {
-	out := make([]string, 0, len(snap.Services))
-	for name := range snap.Services {
-		out = append(out, name)
-	}
-	sort.Strings(out)
-	return out
 }

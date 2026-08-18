@@ -55,24 +55,14 @@ type EndpointSet struct {
 	Known bool
 	// Addresses holds every endpoint, ready or not.
 	Addresses []Endpoint
-	// Ports are the ports the endpoints expose.
-	Ports []EndpointPort
 }
 
 // Endpoint is one address published for a Service.
 type Endpoint struct {
 	Address   string
 	Ready     bool
-	Serving   bool
 	Node      string
 	TargetRef diagnosis.ResourceRef
-}
-
-// EndpointPort is a port published for a Service.
-type EndpointPort struct {
-	Name     string
-	Port     int32
-	Protocol string
 }
 
 // Ready returns the number of endpoints ready to receive traffic.

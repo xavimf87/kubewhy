@@ -3,8 +3,11 @@
 # GoReleaser writes here; the Krew manifest lives here on purpose.
 /dist/*
 !/dist/krew/
-kubectl-why
-kubectl-why.exe
+# Anchored to the repository root. Without the slash these also match the
+# cmd/kubectl-why directory, which silently excluded the program's entrypoint
+# from the repository.
+/kubectl-why
+/kubectl-why.exe
 
 # Test and tooling artifacts
 *.test

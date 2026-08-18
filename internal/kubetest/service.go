@@ -101,7 +101,8 @@ func ReadyEndpoints(ready, notReady int) snapshot.EndpointSet {
 	set := snapshot.EndpointSet{Source: "EndpointSlice", Known: true}
 	for i := 0; i < ready; i++ {
 		set.Addresses = append(set.Addresses, snapshot.Endpoint{
-			Address: "10.1.0." + string(rune('1'+i)), Ready: true, Serving: true,
+			Address:   "10.1.0." + string(rune('1'+i)),
+			Ready:     true,
 			TargetRef: diagnosis.ResourceRef{Kind: "Pod", Namespace: "default"},
 		})
 	}

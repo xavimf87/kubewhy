@@ -79,9 +79,6 @@ func (r ResourceRef) String() string {
 	return r.Kind + "/" + r.Name
 }
 
-// IsZero reports whether the reference is unset.
-func (r ResourceRef) IsZero() bool { return r.Kind == "" && r.Name == "" }
-
 // Evidence is a single fact taken from the Kubernetes API.
 //
 // Source names where it came from ("containerStatus", "event", "condition"),
@@ -141,10 +138,4 @@ type Aggregate struct {
 	Count    int           `json:"count"`
 	Total    int           `json:"total,omitempty"`
 	Subjects []ResourceRef `json:"subjects,omitempty"`
-}
-
-// WithEvidence appends evidence and returns the diagnosis, for readable rules.
-func (d Diagnosis) WithEvidence(ev ...Evidence) Diagnosis {
-	d.Evidence = append(d.Evidence, ev...)
-	return d
 }

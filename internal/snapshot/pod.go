@@ -37,19 +37,16 @@ type Pod struct {
 
 // PVCRef is the minimal view of a claim referenced by a Pod.
 type PVCRef struct {
-	Name       string
-	Exists     Existence
-	Phase      corev1.PersistentVolumeClaimPhase
-	Claim      *corev1.PersistentVolumeClaim
-	VolumeName string
+	Name   string
+	Exists Existence
+	Phase  corev1.PersistentVolumeClaimPhase
+	Claim  *corev1.PersistentVolumeClaim
 	// StorageClass is the class the claim asks for, when it names one.
 	StorageClass string
 	// BindingMode is the class's volumeBindingMode. It matters because a
 	// claim using WaitForFirstConsumer stays Pending on purpose until a Pod
 	// that uses it is scheduled, which is not a fault.
 	BindingMode string
-	// ClassExists records whether the StorageClass could be confirmed.
-	ClassExists Existence
 }
 
 // WaitsForConsumer reports whether the claim binds only once a Pod using it
