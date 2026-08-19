@@ -102,7 +102,7 @@ Backends
   Ready endpoints  0 of 3  from EndpointSlice
 ```
 
-The same walk happens for an Ingress (`Ingress → Service → port → EndpointSlice → Pods`) and for a Deployment. One rule set, applied wherever it is relevant.
+The same walk happens for an Ingress (`Ingress → Service → port → EndpointSlice → Pods`), for a Deployment, and for a StatefulSet — where it also tells you which replica is holding up the ones after it, and which of them were never created at all. One rule set, applied wherever it is relevant.
 
 ---
 

@@ -33,16 +33,28 @@ Registry and kubelet error messages are printed verbatim, because they are the e
 
 KubeWhy does not require cluster-admin. It works with whatever the current user can already read. To diagnose a Pod fully, these help:
 
+Reading the resource you asked about is the only requirement. Everything else
+below sharpens the answer, and anything you cannot read degrades the report
+rather than failing it.
+
 | Resource | Verb | Needed for |
 | --- | --- | --- |
-| `pods` | `get` | The analysis itself (without it, exit code `4`). |
-| `events` | `list` | Scheduling, image pull, mount and probe failures. |
-| `replicasets`, `deployments`, `jobs` | `get` | Resolving the ownership chain beyond the direct owner. |
+| the resource you asked about | `get` | The analysis itself. Without it, exit code `4`. |
+| `events` | `list` | Scheduling, image pull, mount, provisioning and probe failures. |
+| `pods` | `list` | The Pods behind a Service, Deployment, StatefulSet or Ingress backend, and the Pods using a claim. |
+| `replicasets`, `deployments`, `jobs` | `get` | Resolving a Pod's ownership chain beyond its direct owner. |
 | `nodes` | `get` | Node conditions for a Pod that is stuck. |
-| `configmaps` | `get` | Confirming a referenced ConfigMap exists. |
-| `secrets` | `get` | Confirming a referenced Secret **exists**, metadata only. |
-| `persistentvolumeclaims` | `get` | Whether a mounted claim is bound. |
-| `storageclasses` | `get`, `list` | Whether a pending claim is waiting on purpose. |
+| `configmaps` | `get` | Confirming a ConfigMap a Pod requires exists. |
+| `secrets` | `get` | Confirming a Secret **exists**, metadata only — never its contents. |
+| `persistentvolumeclaims` | `get` | Whether a mounted claim, or a StatefulSet replica's own claim, is bound. |
+| `storageclasses` | `get`, `list` | Whether a pending claim is waiting on purpose, and which class is the default. |
+| `endpointslices` | `list` | Which Pods a Service actually sends traffic to. |
+| `endpoints` | `get` | The same, on clusters that do not serve the discovery API. |
+| `services` | `get` | An Ingress backend, and a StatefulSet's governing Service. |
+| `ingressclasses` | `get`, `list` | Whether any controller will serve an Ingress that has no address. |
+
+Only `endpointslices`, `nodes`, `storageclasses` and `ingressclasses` are
+cluster-scoped; everything else is read in one namespace.
 
 Anything missing degrades the report:
 

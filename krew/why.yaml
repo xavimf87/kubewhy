@@ -33,9 +33,10 @@ spec:
     KubeWhy says when the evidence does not identify a cause rather than
     guessing one. Machine-readable output is available with `-o json`.
   caveats: |
-    KubeWhy diagnoses Pods, and support for Services, Deployments, Ingresses
-    and PersistentVolumeClaims is in progress. Run `kubectl why rules` to see
-    every diagnosis it can produce.
+    KubeWhy diagnoses Pods, Services, Deployments, StatefulSets, Ingresses and
+    PersistentVolumeClaims. Run `kubectl why rules` to see every diagnosis it
+    can produce, and `kubectl why <resource> <name> -o json` for output you can
+    automate against.
   platforms:
     - selector:
         matchLabels:

@@ -2,7 +2,7 @@
 
 **Severity:** critical | warning | info
 **Confidence:** certain | likely | possible
-**Applies to:** Pod | Service | Deployment | Ingress | PersistentVolumeClaim
+**Applies to:** Pod | Service | Deployment | StatefulSet | Ingress | PersistentVolumeClaim
 
 ## What it detects
 
