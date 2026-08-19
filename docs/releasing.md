@@ -4,22 +4,33 @@
 
 Nobody types a version number, and nobody decides when to cut a release. The commits decide both.
 
+One workflow runs on `main`. Everything a merge triggers is a job inside it, so
+there is one place to look and one verdict.
+
 ```text
-pull request ──squash──▶ main
-                          │
-                          ▼
-              what version do these commits deserve?
-                          │
-        ┌─────────────────┴─────────────────┐
-        │                                   │
-  nothing releasable                  a version
-  (docs, chore, ci)                        │
-        │                                  ▼
-       stop                    verify against a real cluster
-                                           │
-                                           ▼
-                                  tag ──▶ publish ──▶ binaries
+pull request ──squash──▶ main ──▶ Main workflow
+                                       │
+                    ┌──────────────────┴──────────────────┐
+                    │                                     │
+                 verify                                 plan
+        tests on three platforms          what version do these commits
+        gofmt, vet, golangci-lint              deserve, if any?
+        shell tests                                      │
+        release build, five platforms                    │
+                    │                                    │
+                    └──────────────┬─────────────────────┘
+                                   ▼
+                       end-to-end scenarios on kind
+                            (only if releasing)
+                                   │
+                                   ▼
+                        tag ──▶ publish ──▶ binaries
 ```
+
+**Nothing is released unless everything upstream of it passed.** The release is
+downstream of verification, not beside it: a failing test, a lint error, a
+broken cross-platform build or a failing end-to-end scenario stops the pipeline
+before anything is tagged.
 
 Minutes after your pull request is merged, it is installable.
 

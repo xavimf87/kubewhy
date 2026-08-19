@@ -117,12 +117,14 @@ if $PROTECT; then
   "required_status_checks": {
     "strict": true,
     "contexts": [
-      "Test (ubuntu-latest)",
-      "Test (macos-latest)",
-      "Test (windows-latest)",
-      "Format",
-      "Lint",
-      "Conventional Commits"
+      "Title",
+      "Verify / Test (ubuntu-latest)",
+      "Verify / Test (macos-latest)",
+      "Verify / Test (windows-latest)",
+      "Verify / Format",
+      "Verify / Lint",
+      "Verify / Scripts",
+      "Verify / Release build"
     ]
   },
   "enforce_admins": false,

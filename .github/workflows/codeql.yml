@@ -1,17 +1,12 @@
 name: CodeQL
 
 # KubeWhy runs with a user's cluster credentials, so a vulnerability here is a
-# vulnerability in their cluster access. Static analysis runs on every change
-# and weekly, because a dependency can turn a safe pattern unsafe without the
-# code changing at all.
+# vulnerability in their cluster access. Called by the pull request and main
+# pipelines, and weekly on its own, because a dependency can turn a safe
+# pattern unsafe without the code changing at all.
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-  schedule:
-    - cron: '0 7 * * 1'
+  workflow_call:
 
 permissions:
   contents: read

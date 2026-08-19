@@ -56,6 +56,14 @@ scenario "unconventional is ignored" "v1.4.2" ""       "Add something the old wa
 scenario "a feature buried in noise" "v1.4.2" "v1.5.0" "docs: a" "chore: b" "feat: c" "docs: d" "chore: e"
 scenario "multi-line bodies parse"  "v1.4.2" "v1.4.3"  $'fix: one\n\nA body with\nseveral lines.' "docs: two"
 
+# The strongest bump wins, whatever order the commits landed in and however
+# many of the weaker ones there are.
+scenario "feat wins over many fixes"  "v1.4.2" "v1.5.0"  "fix: a" "fix: b" "fix: c" "feat: d" "fix: e"
+scenario "feat wins whatever the order" "v1.4.2" "v1.5.0" "feat: first" "fix: second"
+scenario "breaking wins over feat"    "v1.4.2" "v2.0.0"  "feat: a" "feat!: b" "fix: c"
+scenario "many feats are still one minor" "v1.4.2" "v1.5.0" "feat: a" "feat: b" "feat: c"
+scenario "many fixes are still one patch" "v1.4.2" "v1.4.3" "fix: a" "fix: b" "fix: c"
+
 echo
 if (( failures )); then
   echo "$failures test(s) failed"

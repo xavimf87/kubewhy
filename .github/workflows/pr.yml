@@ -1,12 +1,8 @@
-name: PR title
+name: PR
 
-# Trunk-based development: everything that reaches main is released, and the
-# pull request title is what decides the version, because squash merging makes
-# it the commit message on main.
-#
-# A title that does not parse releases nothing, so the change would sit on main
-# looking merged and never ship. That is why this is checked rather than
-# trusted.
+# One workflow runs on a pull request, and it checks exactly what the main
+# pipeline will check after the merge — the same reusable Verify workflow — so
+# a green pull request cannot turn red on main.
 
 on:
   pull_request:
@@ -15,9 +11,13 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
-  conventional:
-    name: Conventional Commits
+  title:
+    name: Title
     runs-on: ubuntu-latest
     steps:
       - name: Check the title
@@ -35,7 +35,9 @@ jobs:
             got:  $TITLE
             want: <type>[optional scope]: <description>
 
-          Types, and what each one does to the next release:
+          Pull requests are squash-merged, so this title becomes the commit on
+          main, and main releases everything that reaches it. The type decides
+          the version:
 
             feat      a new rule, resource or user-visible capability   minor bump
             fix       a wrong or misleading diagnosis, or a bug         patch bump
@@ -70,3 +72,15 @@ jobs:
             exit 1
           fi
           echo "ok: $TITLE"
+
+  verify:
+    name: Verify
+    uses: ./.github/workflows/verify.yml
+
+  codeql:
+    name: CodeQL
+    uses: ./.github/workflows/codeql.yml
+    permissions:
+      security-events: write
+      actions: read
+      contents: read

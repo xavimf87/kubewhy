@@ -1,21 +1,16 @@
-name: Release
+name: Main
 
-# Trunk-based development: main is always releasable, and everything that
-# reaches main is released.
+# One workflow runs on main. Everything a merge triggers is a job inside it,
+# so there is a single place to look and a single verdict.
 #
-# There is no release branch, no release pull request and no version to type.
-# A pull request is squash-merged with a Conventional Commits title, that title
-# decides the version, and the release goes out minutes later.
+#   verify ────────┐
+#   (tests, lint,  │
+#    build, e2e)   ├──▶ release
+#   plan ──────────┘
 #
-#   merge to main ──▶ what version do these commits deserve?
-#                     │
-#                     ├── nothing releasable (docs, chore) ──▶ stop
-#                     │
-#                     └── verify against a real cluster ──▶ tag ──▶ publish
-#
-# The tag is created inside this run rather than by a person, and the build
-# follows it in the same run: a tag pushed with GITHUB_TOKEN does not start
-# another workflow, so a separate tag-triggered job would never fire.
+# The release is downstream of verification, not beside it. Nothing is tagged
+# or published unless the tests, the linters, the cross-platform build and the
+# end-to-end scenarios have all passed on this exact commit.
 
 on:
   push:
@@ -32,10 +27,16 @@ permissions:
 
 # Releases are serialised. Two merges landing together must not race to tag.
 concurrency:
-  group: release
+  group: main
   cancel-in-progress: false
 
 jobs:
+  verify:
+    name: Verify
+    uses: ./.github/workflows/verify.yml
+
+  # What the commits since the last release are worth. Seconds, and it decides
+  # whether the expensive parts below are worth running at all.
   plan:
     name: Plan
     runs-on: ubuntu-latest
@@ -58,22 +59,32 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
           if [[ -z "$version" ]]; then
-            echo "Nothing releasable landed. No release." >> "$GITHUB_STEP_SUMMARY"
+            echo "Nothing releasable landed, so nothing is released." >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "Next release: **$version**" >> "$GITHUB_STEP_SUMMARY"
+            echo "These commits are worth **$version**." >> "$GITHUB_STEP_SUMMARY"
           fi
 
-  # A release is only worth cutting if it works against a real cluster, so the
-  # end-to-end scenarios gate it rather than merely reporting afterwards.
-  verify:
-    name: Verify
-    needs: plan
+  # A release has to work against a real cluster, not merely compile. This is
+  # the slow part, so it only runs when there is something to release.
+  e2e:
+    name: End to end
+    needs: [verify, plan]
     if: needs.plan.outputs.version != ''
     uses: ./.github/workflows/e2e.yml
 
+  # Static analysis reports to the security tab rather than gating a build, so
+  # it runs alongside rather than in front of the release.
+  codeql:
+    name: CodeQL
+    uses: ./.github/workflows/codeql.yml
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
   release:
     name: Release
-    needs: [plan, verify]
+    needs: [plan, verify, e2e]
     if: needs.plan.outputs.version != ''
     runs-on: ubuntu-latest
     permissions:
@@ -90,6 +101,8 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      # The tag has to exist before the build, because it is what GoReleaser
+      # derives the version from.
       - name: Tag ${{ needs.plan.outputs.version }}
         run: |
           git config user.name  "github-actions[bot]"
@@ -106,10 +119,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # The tag has to exist before the build, because it is what the version
-      # is derived from. If the build then fails, that tag is a lie: it names a
-      # release nobody can install, and the next run would read it as the last
-      # release and skip the version entirely. Take it back.
+      # A tag left behind by a build that failed would name a release nobody
+      # can install, and the next run would read it as the last release and
+      # skip the version entirely. Take it back.
       - name: Untag a release that never shipped
         if: failure() && steps.publish.outcome == 'failure'
         run: |

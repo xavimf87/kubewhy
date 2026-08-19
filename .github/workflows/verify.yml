@@ -1,16 +1,15 @@
-name: CI
+name: Verify
+
+# Everything that decides whether the code is good, in one reusable place.
+#
+# Both the pull request pipeline and the main pipeline call this, so a change
+# can never be verified one way before merging and another way after.
 
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_call:
 
 permissions:
   contents: read
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   test:
@@ -94,7 +93,7 @@ jobs:
       - name: Version calculation
         run: hack/next-version.test.sh
 
-  release-check:
+  build:
     name: Release build
     runs-on: ubuntu-latest
     steps:

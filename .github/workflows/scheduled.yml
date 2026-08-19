@@ -1,0 +1,26 @@
+name: Scheduled
+
+# Kubernetes and the dependency tree keep moving while this repository stands
+# still. These run weekly to catch a change out there breaking something in
+# here that no commit touched.
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: End to end
+    uses: ./.github/workflows/e2e.yml
+
+  codeql:
+    name: CodeQL
+    uses: ./.github/workflows/codeql.yml
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
