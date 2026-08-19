@@ -153,3 +153,25 @@ func TestWarningsExitAsIssues(t *testing.T) {
 		t.Errorf("exit code = %d, want %d", code, ExitIssueFound)
 	}
 }
+
+// The help is where someone finds out what they can ask about, so every kind
+// the resolver accepts has to appear there — and every name it prints has to
+// be one the resolver takes back.
+func TestHelpListsEveryResource(t *testing.T) {
+	code, stdout, _ := run(t, nil, nil, "--help")
+	if code != ExitOK {
+		t.Fatalf("exit code = %d", code)
+	}
+
+	for _, alias := range kube.KindAliases() {
+		if !strings.Contains(stdout, alias) {
+			t.Errorf("the help does not mention %q", alias)
+		}
+	}
+	if !strings.Contains(stdout, "Resources it can diagnose") {
+		t.Error("the help should introduce the resource list")
+	}
+	if !strings.Contains(stdout, "rules") {
+		t.Error("the help should point at the rules command")
+	}
+}

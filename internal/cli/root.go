@@ -73,21 +73,19 @@ func newRootCommand(opts *options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   binaryName() + " RESOURCE NAME",
 		Short: "Explain why a Kubernetes resource is not working",
-		Long: strings.TrimSpace(`
-KubeWhy correlates the status, conditions, events and related objects of a
-Kubernetes resource, and explains what they say about it.
-
-It is read-only: it never modifies, restarts or deletes anything, never runs
-commands inside containers, and never reads Secret contents.`),
+		Long:  longDescription(),
 		Example: examples(fmt.Sprintf(`
   # Diagnose a Pod in the current namespace
   %[1]s pod api-7b89d8c9-xfd2
 
-  # Diagnose a Pod in another namespace and cluster
-  %[1]s pod api-7b89d8c9-xfd2 -n production --context prod-cluster
+  # A Service with no ready endpoints: the backend Pods are diagnosed too
+  %[1]s service payments -n production
 
-  # Machine-readable output for scripts and CI
-  %[1]s pod api-7b89d8c9-xfd2 -o json`, name)),
+  # A StatefulSet: which replica is blocking the ones after it
+  %[1]s sts postgres -n production
+
+  # Another cluster, and machine-readable output for scripts and CI
+  %[1]s pod api-7b89d8c9-xfd2 --context prod-cluster -o json`, name)),
 		Args:              cobra.MaximumNArgs(2),
 		SilenceUsage:      true,
 		SilenceErrors:     true,
@@ -121,6 +119,26 @@ commands inside containers, and never reads Secret contents.`),
 	cmd.AddCommand(newVersionCommand(opts))
 	cmd.AddCommand(newRulesCommand(opts))
 	return cmd
+}
+
+// longDescription builds the help text, listing the resources from the
+// resolver itself. Anyone adding a kind gets it into the help for free, and a
+// hand-written list could not have stayed correct across six of them.
+func longDescription() string {
+	var b strings.Builder
+	b.WriteString(strings.TrimSpace(`
+KubeWhy correlates the status, conditions, events and related objects of a
+Kubernetes resource, and explains what they say about it.
+
+It is read-only: it never modifies, restarts or deletes anything, never runs
+commands inside containers, and never reads Secret contents.`))
+
+	b.WriteString("\n\nResources it can diagnose:\n\n")
+	for _, resource := range kube.SupportedResources() {
+		b.WriteString("  " + resource + "\n")
+	}
+	b.WriteString("\nRun '" + invocationName() + " rules' for every diagnosis it can produce.")
+	return b.String()
 }
 
 // invocationName returns the command as a user is meant to type it: through
