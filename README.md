@@ -130,30 +130,47 @@ It will never tell you that your application has a memory leak, because Kubernet
 
 ## Installation
 
-### Download a binary
+KubeWhy is a single binary called `kubectl-why`. **Put it anywhere on your `PATH` and kubectl exposes it as `kubectl why`** — that is all a kubectl plugin is, and there is nothing to configure:
 
-No Go toolchain needed. Grab the archive for your platform from the [latest release](https://github.com/xavimf87/kubewhy/releases/latest), extract `kubectl-why`, and put it anywhere on your `PATH`:
+```console
+$ kubectl plugin list
+/usr/local/bin/kubectl-why
 
-```bash
-curl -sSL https://github.com/xavimf87/kubewhy/releases/latest/download/kubewhy_v0.2.1_darwin_arm64.tar.gz | tar xz
-mv kubectl-why /usr/local/bin/
-kubectl why --help
+$ kubectl why pod api-7b89d8c9-xfd2
 ```
 
-Verify it against `checksums.txt` from the same release if you like.
+Running it directly as `kubectl-why pod api-7b89d8c9-xfd2` does exactly the same thing. Use whichever reads better to you; the rest of this README uses `kubectl why`.
+
+### Download a binary
+
+No Go toolchain needed. Pick your platform from the [latest release](https://github.com/xavimf87/kubewhy/releases/latest):
+
+```bash
+VERSION=$(curl -fsSL https://api.github.com/repos/xavimf87/kubewhy/releases/latest \
+  | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p')
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+ARCH=$(uname -m | sed 's/x86_64/amd64/; s/aarch64/arm64/')
+
+curl -fsSL "https://github.com/xavimf87/kubewhy/releases/download/$VERSION/kubewhy_${VERSION}_${OS}_${ARCH}.tar.gz" | tar xz
+sudo mv kubectl-why /usr/local/bin/
+
+kubectl why --help          # it is a kubectl plugin now
+```
+
+The version is resolved rather than written in, so the command does not go stale between releases. Windows is a `.zip` of the same shape.
+
+Verify the archive against `checksums.txt` from the same release if you like.
+
+If you download through a browser instead, macOS quarantines the file and Gatekeeper refuses to run it; `xattr -d com.apple.quarantine /usr/local/bin/kubectl-why` clears that. Fetching it with `curl` as above never sets the attribute.
 
 ### With `go install`
 
-**Requires Go 1.26 or newer.** That is not a choice KubeWhy makes: the Kubernetes client libraries it builds on require it, and an older toolchain fails with `invalid go version '1.26.0'` before it gets as far as compiling anything. If you are not on 1.26, download a binary instead — it needs no Go at all.
+**Requires Go 1.26 or newer.** That is not a choice KubeWhy makes: the Kubernetes client libraries it builds on require it, and an older toolchain fails with `invalid go version '1.26.0'` before it compiles anything. If you are not on 1.26, download a binary instead — it needs no Go at all.
 
 ```bash
 go install github.com/xavimf87/kubewhy/cmd/kubectl-why@latest
-```
 
-Make sure your `GOBIN` (usually `~/go/bin`) is in your `PATH`, then:
-
-```bash
-kubectl why --help
+kubectl why --help          # once your GOBIN, usually ~/go/bin, is on your PATH
 ```
 
 ### From source
@@ -162,15 +179,22 @@ kubectl why --help
 git clone https://github.com/xavimf87/kubewhy
 cd kubewhy
 make build
-mv bin/kubectl-why /usr/local/bin/     # or anywhere on your PATH
+sudo mv bin/kubectl-why /usr/local/bin/
+
 kubectl why --help
 ```
 
-kubectl discovers any executable named `kubectl-why` on your `PATH` and exposes it as `kubectl why`. Running the binary directly as `kubectl-why` works exactly the same.
-
 ### Krew
 
-Krew support is planned. KubeWhy is **not** in the Krew index yet; the manifest under [`krew/`](krew/) is prepared for the submission once releases are published.
+Krew is a package manager for kubectl plugins. It installs the same binary into a directory it puts on your `PATH`, so `kubectl why` works exactly as above — what it adds is upgrades and removal in one command:
+
+```bash
+kubectl krew install why      # not available yet
+kubectl krew upgrade why
+kubectl krew uninstall why
+```
+
+**KubeWhy is not in the Krew index yet.** The manifest under [`krew/`](krew/) is ready for the submission; until it is merged, use one of the methods above. This line will say so when that changes.
 
 ---
 
