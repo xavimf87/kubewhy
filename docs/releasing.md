@@ -96,6 +96,8 @@ No secrets to configure. `GITHUB_TOKEN` covers tagging and publishing.
 
 **A bad release.** A published binary cannot be unpublished, so it is fixed by releasing over it. With trunk-based development that is one pull request titled `fix:` and a few minutes — which is the point.
 
+**A failed release.** The tag has to exist before the build, because it is what the version is derived from, so a build that fails afterwards would leave a tag naming a release nobody can install — and the next run would read that tag as the last release and skip the version. The workflow deletes the tag when publishing fails, so the next attempt retries the same version instead of burning it.
+
 ## Krew
 
 Krew is a separate, manual submission, and it happens **after** a release exists, because the manifest needs the archive URLs and their checksums:

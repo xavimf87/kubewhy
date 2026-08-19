@@ -98,12 +98,23 @@ jobs:
           git push origin "$VERSION"
 
       - name: Build and publish
+        id: publish
         uses: goreleaser/goreleaser-action@v6
         with:
           version: latest
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # The tag has to exist before the build, because it is what the version
+      # is derived from. If the build then fails, that tag is a lie: it names a
+      # release nobody can install, and the next run would read it as the last
+      # release and skip the version entirely. Take it back.
+      - name: Untag a release that never shipped
+        if: failure() && steps.publish.outcome == 'failure'
+        run: |
+          git push --delete origin "$VERSION" || true
+          echo "Publishing failed, so $VERSION was untagged. The next run will try it again." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Summarise
         run: |
