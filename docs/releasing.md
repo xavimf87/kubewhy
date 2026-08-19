@@ -44,8 +44,8 @@ The second is **honesty about what is tested**. A release branch is a configurat
 
 The cost is that `main` has to actually be releasable, all the time. That is not a slogan here:
 
-- Every pull request runs the tests on Linux, macOS and Windows, plus `gofmt`, `go vet`, `golangci-lint`, and a release build for all five platforms.
-- **Every release is verified against a real Kubernetes cluster before it is tagged.** The end-to-end scenarios run on kind, and the tag is not created if they fail.
+- Every pull request runs the tests on Linux, macOS and Windows, plus `gofmt`, `go vet`, `golangci-lint`, a release build for all five platforms, **and the end-to-end scenarios against a real cluster on kind**. That last one is not a luxury: the scenarios gate the release, so they have to gate the merge, or `main` can stop being releasable and take another commit to fix.
+- **Every release is verified against a real Kubernetes cluster before it is tagged** as well. The tag is not created if the scenarios fail.
 - Branch protection keeps unreviewed and unverified commits off `main`.
 
 ## What decides the version

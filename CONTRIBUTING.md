@@ -142,7 +142,7 @@ Review the diff. It is the product's user interface, and it should read like `ku
 - Keep them focused. One rule, one fix, one refactor.
 - Explain *why*, not just what. If the change affects a diagnosis, show the before and after output.
 - Note whether you changed anything users automate against: CLI syntax, rule identifiers, JSON fields, exit codes. These are treated as public API even before 1.0.
-- One workflow runs on a pull request. It checks the title, then runs the same reusable Verify workflow the main pipeline runs after the merge — `gofmt`, `go vet`, `golangci-lint`, the tests on Linux, macOS and Windows, the shell tests and a release build for all five platforms — so a green pull request cannot turn red on `main`.
+- One workflow runs on a pull request, and it checks everything the main pipeline checks: the title, then `gofmt`, `go vet`, `golangci-lint`, the tests on Linux, macOS and Windows, the shell tests, a release build for all five platforms, and the end-to-end scenarios against a real cluster on kind. A green pull request cannot turn red on `main`, which matters here because merging to `main` releases.
 
 ### The title matters more than the commits
 

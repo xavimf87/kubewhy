@@ -1,8 +1,9 @@
 name: PR
 
 # One workflow runs on a pull request, and it checks exactly what the main
-# pipeline will check after the merge — the same reusable Verify workflow — so
-# a green pull request cannot turn red on main.
+# pipeline checks after the merge: the same reusable Verify workflow and the
+# same end-to-end scenarios. A green pull request cannot turn red on main,
+# which matters here because merging to main releases.
 
 on:
   pull_request:
@@ -76,6 +77,18 @@ jobs:
   verify:
     name: Verify
     uses: ./.github/workflows/verify.yml
+
+  # The end-to-end scenarios gate the release, so they have to gate the merge
+  # too. Without this a pull request could pass everything, merge, and then
+  # fail on main — where "main is always releasable" stops being true and it
+  # takes another commit to make it true again.
+  #
+  # It runs beside Verify rather than after it. The scenarios build the binary
+  # themselves, so a change that does not compile fails here in a minute
+  # instead of waiting seven for the cross-platform build to finish first.
+  e2e:
+    name: End to end
+    uses: ./.github/workflows/e2e.yml
 
   codeql:
     name: CodeQL

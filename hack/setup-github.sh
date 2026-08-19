@@ -124,7 +124,8 @@ if $PROTECT; then
       "Verify / Format",
       "Verify / Lint",
       "Verify / Scripts",
-      "Verify / Release build"
+      "Verify / Release build",
+      "End to end / Scenarios on kind"
     ]
   },
   "enforce_admins": false,
