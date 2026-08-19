@@ -52,21 +52,37 @@ func Get() Info {
 		GoVersion: runtime.Version(),
 		Platform:  fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
 	}
-	if info.Commit == "" {
-		if build, ok := debug.ReadBuildInfo(); ok {
-			for _, setting := range build.Settings {
-				switch setting.Key {
-				case "vcs.revision":
-					info.Commit = setting.Value
-				case "vcs.time":
-					if info.BuildDate == "" {
-						info.BuildDate = setting.Value
-					}
-				}
+	if build, ok := debug.ReadBuildInfo(); ok {
+		applyBuildInfo(&info, build)
+	}
+	return info
+}
+
+// applyBuildInfo fills in what the Go toolchain recorded, for binaries built
+// without ldflags.
+//
+// `go install github.com/xavimf87/kubewhy/cmd/kubectl-why@latest` is the
+// install method the README leads with, and it applies no ldflags at all — so
+// without this the binary reports "dev" and a bug report cannot say which
+// version it came from. Go records the module version it resolved, which is
+// exactly the answer.
+func applyBuildInfo(info *Info, build *debug.BuildInfo) {
+	if info.Version == "dev" && build.Main.Version != "" && build.Main.Version != "(devel)" {
+		info.Version = canonical(build.Main.Version)
+	}
+	if info.Commit != "" {
+		return
+	}
+	for _, setting := range build.Settings {
+		switch setting.Key {
+		case "vcs.revision":
+			info.Commit = setting.Value
+		case "vcs.time":
+			if info.BuildDate == "" {
+				info.BuildDate = setting.Value
 			}
 		}
 	}
-	return info
 }
 
 // String renders the metadata as the version command prints it.

@@ -130,7 +130,21 @@ It will never tell you that your application has a memory leak, because Kubernet
 
 ## Installation
 
+### Download a binary
+
+No Go toolchain needed. Grab the archive for your platform from the [latest release](https://github.com/xavimf87/kubewhy/releases/latest), extract `kubectl-why`, and put it anywhere on your `PATH`:
+
+```bash
+curl -sSL https://github.com/xavimf87/kubewhy/releases/latest/download/kubewhy_v0.2.1_darwin_arm64.tar.gz | tar xz
+mv kubectl-why /usr/local/bin/
+kubectl why --help
+```
+
+Verify it against `checksums.txt` from the same release if you like.
+
 ### With `go install`
+
+**Requires Go 1.26 or newer.** That is not a choice KubeWhy makes: the Kubernetes client libraries it builds on require it, and an older toolchain fails with `invalid go version '1.26.0'` before it gets as far as compiling anything. If you are not on 1.26, download a binary instead — it needs no Go at all.
 
 ```bash
 go install github.com/xavimf87/kubewhy/cmd/kubectl-why@latest
