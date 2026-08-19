@@ -109,6 +109,27 @@ No secrets to configure. `GITHUB_TOKEN` covers tagging and publishing.
 
 **A failed release.** The tag has to exist before the build, because it is what the version is derived from, so a build that fails afterwards would leave a tag naming a release nobody can install — and the next run would read that tag as the last release and skip the version. The workflow deletes the tag when publishing fails, so the next attempt retries the same version instead of burning it.
 
+## Homebrew
+
+Every release pushes a cask to [xavimf87/homebrew-tap](https://github.com/xavimf87/homebrew-tap),
+so `brew install xavimf87/tap/kubewhy` is always the version that was just
+published. Nothing in that repository is edited by hand.
+
+It needs one secret, because `GITHUB_TOKEN` cannot write to another repository:
+
+1. Create a fine-grained personal access token with **Contents: read and write**
+   on `xavimf87/homebrew-tap` and nothing else.
+2. Add it to this repository as the secret `HOMEBREW_TAP_TOKEN`.
+
+Until that secret exists the cask is skipped rather than attempted, so a
+release never fails over a formula it could not push. The workflow always
+defines the variable, empty or not, because GoReleaser cannot default an
+environment variable that is absent entirely.
+
+A cask rather than a formula: GoReleaser deprecated `brews`, and casks now work
+on Linuxbrew too. The cask's `postflight` hook strips
+`com.apple.quarantine`, which is what stops macOS offering to bin the binary.
+
 ## macOS notarization
 
 The darwin binaries are ad-hoc signed by the Go linker, which is enough to

@@ -141,6 +141,15 @@ $ kubectl why pod api-7b89d8c9-xfd2
 
 Running it directly as `kubectl-why pod api-7b89d8c9-xfd2` does exactly the same thing. Use whichever reads better to you; the rest of this README uses `kubectl why`.
 
+### Homebrew
+
+```bash
+brew install xavimf87/tap/kubewhy
+kubectl why --help
+```
+
+Works on macOS and on Linux. On macOS it is also the way to avoid the Gatekeeper dialog described below: the cask clears the quarantine attribute for you.
+
 ### Download a binary
 
 No Go toolchain needed. Pick your platform from the [latest release](https://github.com/xavimf87/kubewhy/releases/latest):
@@ -178,7 +187,7 @@ xattr -d com.apple.quarantine /usr/local/bin/kubectl-why
 # 3. Or click through it once: System Settings → Privacy & Security → Open Anyway.
 ```
 
-Package managers do not have this problem: neither Krew nor Homebrew sets the quarantine attribute, so a binary installed through either just runs.
+Package managers do not have this problem. Homebrew's cask clears the attribute explicitly, and Krew never sets it, so a binary installed through either just runs.
 
 You can check any of it yourself:
 

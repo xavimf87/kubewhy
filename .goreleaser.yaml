@@ -49,6 +49,45 @@ archives:
       - LICENSE
       - README.md
 
+# A Homebrew cask rather than a formula: `brews` is deprecated, and casks now
+# work on Linuxbrew too. Installing through brew also answers the Gatekeeper
+# dialog that catches people who download the archive in a browser — brew
+# fetches with curl, and the hook below strips the quarantine attribute that
+# macOS would otherwise refuse to run.
+homebrew_casks:
+  - name: kubewhy
+    repository:
+      owner: xavimf87
+      name: homebrew-tap
+      branch: main
+      # A token of its own, because GITHUB_TOKEN cannot write to another
+      # repository. Set HOMEBREW_TAP_TOKEN in this repository's secrets.
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Casks
+    homepage: https://github.com/xavimf87/kubewhy
+    description: A read-only kubectl plugin that explains why Kubernetes resources aren't working
+    license: Apache-2.0
+    binaries:
+      - kubectl-why
+    # Until the token exists, publish nothing rather than fail a release whose
+    # binaries have already shipped. The release workflow always defines the
+    # variable, empty or not, because GoReleaser has no way to default one that
+    # is absent entirely.
+    skip_upload: '{{ if eq .Env.HOMEBREW_TAP_TOKEN "" }}true{{ else }}false{{ end }}'
+    hooks:
+      post:
+        install: |
+          if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/kubectl-why"]
+          end
+    caveats: |
+      kubectl exposes any executable named kubectl-* on your PATH, so this
+      installs as:
+
+        kubectl why pod api-7b89d8c9-xfd2
+
+      Run 'kubectl why rules' for every diagnosis it can produce.
+
 checksum:
   name_template: checksums.txt
   algorithm: sha256
