@@ -1,0 +1,73 @@
+# Template for the Krew release bot, which opens the pull request to
+# krew-index on every release. See docs/releasing.md.
+#
+# {{ .TagName }} is the only variable available, which is why the release
+# archives are named after the tag rather than the bare version.
+apiVersion: krew.googlecontainertools.github.com/v1alpha2
+kind: Plugin
+metadata:
+  name: why
+spec:
+  version: {{ .TagName }}
+  homepage: https://github.com/xavimf87/kubewhy
+  shortDescription: Explain why a Kubernetes resource is not working
+  description: |
+    KubeWhy correlates the status, conditions, events and related objects of a
+    Kubernetes resource and explains what they say about it, instead of leaving
+    you to join kubectl get, describe and get events in your head.
+
+      kubectl why pod api-7b89d8c9-xfd2
+      kubectl why service payments
+      kubectl why statefulset postgres
+
+    It follows relationships. Ask about a Service and the Pods behind it are
+    diagnosed too, with identical failures collapsed into one finding. Ask about
+    an Ingress and it walks Ingress to Service to port to EndpointSlice to Pods.
+    Ask about a StatefulSet and it names the replica holding up the ones after
+    it, and which of them were never created at all.
+
+    Every finding carries a stable identifier, a severity and a confidence, and
+    KubeWhy says when the evidence does not identify a cause rather than
+    inventing one. Machine-readable output is available with -o json, and the
+    exit code says whether anything was found.
+
+    It is read-only by design: it never modifies, restarts or deletes anything,
+    never runs commands inside containers, and never reads Secret contents. It
+    uses your existing kubeconfig, needs no cluster-admin, installs nothing into
+    the cluster, and makes no network request other than to your API server.
+  caveats: |
+    Diagnoses Pods, Services, Deployments, StatefulSets, Ingresses and
+    PersistentVolumeClaims.
+
+    Run 'kubectl why rules' to see every diagnosis it can produce.
+  platforms:
+  - selector:
+      matchLabels:
+        os: linux
+        arch: amd64
+    {{addURIAndSha "https://github.com/xavimf87/kubewhy/releases/download/{{ .TagName }}/kubewhy_{{ .TagName }}_linux_amd64.tar.gz" .TagName }}
+    bin: kubectl-why
+  - selector:
+      matchLabels:
+        os: linux
+        arch: arm64
+    {{addURIAndSha "https://github.com/xavimf87/kubewhy/releases/download/{{ .TagName }}/kubewhy_{{ .TagName }}_linux_arm64.tar.gz" .TagName }}
+    bin: kubectl-why
+  - selector:
+      matchLabels:
+        os: darwin
+        arch: amd64
+    {{addURIAndSha "https://github.com/xavimf87/kubewhy/releases/download/{{ .TagName }}/kubewhy_{{ .TagName }}_darwin_amd64.tar.gz" .TagName }}
+    bin: kubectl-why
+  - selector:
+      matchLabels:
+        os: darwin
+        arch: arm64
+    {{addURIAndSha "https://github.com/xavimf87/kubewhy/releases/download/{{ .TagName }}/kubewhy_{{ .TagName }}_darwin_arm64.tar.gz" .TagName }}
+    bin: kubectl-why
+  - selector:
+      matchLabels:
+        os: windows
+        arch: amd64
+    {{addURIAndSha "https://github.com/xavimf87/kubewhy/releases/download/{{ .TagName }}/kubewhy_{{ .TagName }}_windows_amd64.zip" .TagName }}
+    bin: kubectl-why.exe

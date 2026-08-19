@@ -128,6 +128,14 @@ jobs:
           git push --delete origin "$VERSION" || true
           echo "Publishing failed, so $VERSION was untagged. The next run will try it again." >> "$GITHUB_STEP_SUMMARY"
 
+      # Once the plugin is in the Krew index, this opens the pull request that
+      # updates it, so a release does not need a hand-written manifest every
+      # time. It fails until the plugin is accepted, which must not fail the
+      # release that was already published.
+      - name: Offer the new version to the Krew index
+        continue-on-error: true
+        uses: rajatjindal/krew-release-bot@v0.0.51
+
       - name: Summarise
         run: |
           {

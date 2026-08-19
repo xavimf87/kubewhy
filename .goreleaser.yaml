@@ -39,8 +39,12 @@ archives:
     format_overrides:
       - goos: windows
         formats: [zip]
+    # The tag rather than the bare version, so an archive name can be derived
+    # from {{ .TagName }} alone. That is all the Krew release bot's template
+    # language offers, and it is what keeps the Krew manifest generated rather
+    # than hand-written.
     name_template: >-
-      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+      {{ .ProjectName }}_{{ .Tag }}_{{ .Os }}_{{ .Arch }}
     files:
       - LICENSE
       - README.md

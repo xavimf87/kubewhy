@@ -111,10 +111,29 @@ No secrets to configure. `GITHUB_TOKEN` covers tagging and publishing.
 
 ## Krew
 
-Krew is a separate, manual submission, and it happens **after** a release exists, because the manifest needs the archive URLs and their checksums:
+The plugin is called `why` in the index, so it installs as `kubectl krew install why` and runs as `kubectl why`.
 
-1. Copy the version and the `sha256` values from the release's `checksums.txt` into `krew/why.yaml`.
-2. Validate locally: `kubectl krew install --manifest=krew/why.yaml`.
-3. Open a pull request against [krew-index](https://github.com/kubernetes-sigs/krew-index).
+### The first submission, once
 
-Until that is merged, the README says Krew support is *planned*, and it should keep saying so.
+It happens **after** a release exists, because the manifest needs each archive's URL and its `sha256`.
+
+```bash
+hack/krew-manifest.sh --write        # generate krew/why.yaml from the latest release
+kubectl krew install --manifest=krew/why.yaml   # install it exactly as the index CI will
+kubectl why version
+kubectl krew uninstall why
+```
+
+The manifest is generated rather than written. Five checksums copied by hand, once per release, is a transcription error waiting to happen — and one wrong character breaks the install for everyone except the person who made it.
+
+Then fork [krew-index](https://github.com/kubernetes-sigs/krew-index), copy the file to `plugins/why.yaml`, and open a pull request. Its CI runs the same validation you just ran locally, and a maintainer reviews it.
+
+Worth knowing before you write that pull request: `why-pending`, `why-fail` and `why-blocked` are already in the index. None of them is this — they explain one Pod state each; KubeWhy diagnoses six kinds and walks the relationships between them. Say so plainly in the description, because a reviewer looking at four plugins whose names start with "why" will ask.
+
+### Every release after that, automatically
+
+[krew-release-bot](https://github.com/rajatjindal/krew-release-bot) opens the update pull request itself. It reads [`.krew.yaml`](../.krew.yaml) at the repository root, resolves the checksums from the published archives, and raises the pull request against krew-index. The step is already in the release workflow, and it is allowed to fail: until the plugin is accepted there is nothing to update, and a release that has already shipped must not be marked failed for it.
+
+The bot's template language offers exactly one variable, `{{ .TagName }}`, and no way to strip the leading `v`. That is why the release archives are named after the tag — `kubewhy_v0.2.0_linux_amd64.tar.gz` — rather than the bare version. Changing that naming breaks the bot silently, by generating URLs that 404.
+
+Until the plugin is in the index, the README says Krew support is *planned*, and it should keep saying so.
