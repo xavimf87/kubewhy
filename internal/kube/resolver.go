@@ -11,11 +11,12 @@ type Kind string
 
 // Kinds supported by KubeWhy.
 const (
-	KindPod        Kind = "Pod"
-	KindService    Kind = "Service"
-	KindDeployment Kind = "Deployment"
-	KindIngress    Kind = "Ingress"
-	KindPVC        Kind = "PersistentVolumeClaim"
+	KindPod         Kind = "Pod"
+	KindService     Kind = "Service"
+	KindDeployment  Kind = "Deployment"
+	KindStatefulSet Kind = "StatefulSet"
+	KindIngress     Kind = "Ingress"
+	KindPVC         Kind = "PersistentVolumeClaim"
 )
 
 // kindAliases maps every accepted user input to a supported kind. The aliases
@@ -30,6 +31,9 @@ var kindAliases = map[string]Kind{
 	"deployment":             KindDeployment,
 	"deployments":            KindDeployment,
 	"deploy":                 KindDeployment,
+	"statefulset":            KindStatefulSet,
+	"statefulsets":           KindStatefulSet,
+	"sts":                    KindStatefulSet,
 	"ingress":                KindIngress,
 	"ingresses":              KindIngress,
 	"ing":                    KindIngress,
@@ -60,7 +64,7 @@ func SupportedResources() []string {
 	for alias, kind := range kindAliases {
 		byKind[kind] = append(byKind[kind], alias)
 	}
-	order := []Kind{KindPod, KindService, KindDeployment, KindIngress, KindPVC}
+	order := []Kind{KindPod, KindService, KindDeployment, KindStatefulSet, KindIngress, KindPVC}
 	out := make([]string, 0, len(order))
 	for _, kind := range order {
 		canonical := strings.ToLower(string(kind))

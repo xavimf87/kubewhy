@@ -41,6 +41,8 @@ kubectl delete namespace kubewhy-demo
 | `service-no-endpoints.yaml` | Three backends that never become ready. | `SERVICE_NO_READY_ENDPOINTS`, caused by `POD_READINESS_PROBE_FAILED` |
 | `deployment-oom.yaml` | Three replicas dying the same way. | `POD_OOM_KILLED` as "3 of 3 Pods", then `DEPLOYMENT_UNAVAILABLE_REPLICAS` |
 | `ingress-missing-service.yaml` | An Ingress routing to a Service that does not exist. | `INGRESS_SERVICE_NOT_FOUND` |
+| `statefulset-blocked.yaml` | Replica 1 never becomes ready, so replica 2 is never created. | `STATEFULSET_ORDERED_ROLLOUT_BLOCKED` |
+| `statefulset-service.yaml` | Every Pod is Ready and none has a resolvable name. | `STATEFULSET_SERVICE_NOT_FOUND` |
 | `healthy.yaml` | Nothing. It is the control case. | No findings |
 
 The last one matters as much as the rest: a tool that finds a problem everywhere is as useless as one that finds none.

@@ -13,6 +13,7 @@ import (
 	podrules "github.com/xavimf87/kubewhy/internal/diagnosis/rules/pod"
 	pvcrules "github.com/xavimf87/kubewhy/internal/diagnosis/rules/pvc"
 	servicerules "github.com/xavimf87/kubewhy/internal/diagnosis/rules/service"
+	statefulsetrules "github.com/xavimf87/kubewhy/internal/diagnosis/rules/statefulset"
 )
 
 // newRulesCommand lists the diagnostic rules. KubeWhy's value depends on
@@ -59,6 +60,7 @@ func ruleGroups() []ruleGroup {
 		{Kind: "Pod", Rules: append(podrules.Catalog(), podrules.FallbackMeta())},
 		{Kind: "Service", Rules: servicerules.Catalog()},
 		{Kind: "Deployment", Rules: deploymentrules.Catalog()},
+		{Kind: "StatefulSet", Rules: statefulsetrules.Catalog()},
 		{Kind: "Ingress", Rules: ingressrules.Catalog()},
 		{Kind: "PersistentVolumeClaim", Rules: append(pvcrules.Catalog(), pvcrules.FallbackMeta())},
 	}

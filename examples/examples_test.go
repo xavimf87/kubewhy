@@ -58,6 +58,9 @@ func checkObject(t *testing.T, object runtime.Object) {
 	case *appsv1.Deployment:
 		requireLabel(t, typed.Labels)
 		checkPodSpec(t, typed.Spec.Template.Spec)
+	case *appsv1.StatefulSet:
+		requireLabel(t, typed.Labels)
+		checkPodSpec(t, typed.Spec.Template.Spec)
 	case *corev1.Service:
 		requireLabel(t, typed.Labels)
 	case *corev1.PersistentVolumeClaim:

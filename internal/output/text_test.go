@@ -184,6 +184,20 @@ func goldenCases() []struct {
 				return analyze.PVCReport(context.Background(), snap)
 			},
 		},
+		{
+			name: "statefulset_blocked",
+			report: func(t *testing.T) *diagnosis.Report {
+				set := kubetest.StatefulSet("postgres").Namespace("prod").
+					Replicas(3).ClaimTemplate("data").Status(1, 2, 2).Build()
+				snap := kubetest.StatefulSetSnap(set, true, false)
+				snap.Pods[1].Pod.Status.Phase = corev1.PodPending
+				kubetest.TemplatedClaim(snap, "data", 0, corev1.ClaimBound)
+				claim := kubetest.TemplatedClaim(snap, "data", 1, corev1.ClaimPending)
+				claim.StorageClass = "premium-ssd"
+				claim.BindingMode = "Immediate"
+				return analyze.StatefulSetReport(context.Background(), snap)
+			},
+		},
 	}
 }
 

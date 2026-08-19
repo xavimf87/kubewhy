@@ -1,0 +1,70 @@
+✗ StatefulSet/postgres is unhealthy
+
+ROOT CAUSE
+  postgres-1 is not ready, so the 1 replica after it has not been created
+
+  This StatefulSet uses podManagementPolicy OrderedReady, so it creates one Pod
+  at a time and waits for each to be ready before starting the next. Pod 1 is
+  not ready, so nothing after it exists yet. Those replicas are not failing; the
+  controller has not created them. Fixing this one Pod releases the rest.
+
+  Evidence
+    spec.podManagementPolicy  OrderedReady
+    blockedBy                 postgres-1
+    neverCreated              postgres-2
+
+  Suggested action
+    Diagnose the blocking Pod; every replica behind it is waiting on that one
+    answer.
+      kubectl why pod postgres-1 -n prod
+
+ALSO DETECTED
+  The claim for postgres-1 is Pending, not Bound
+
+  Replica postgres-1 cannot start until its own volume is bound. Each replica of
+  a StatefulSet gets its own claim, so this affects that one Pod rather than the
+  whole set — though under ordered management, that is enough to hold up every
+  replica after it.
+
+  Evidence
+    status.phase           Pending
+    spec.storageClassName  premium-ssd
+
+  Suggested action
+    Ask KubeWhy about the claim; its events say why provisioning has not
+    finished.
+      kubectl why pvc data-postgres-1 -n prod
+
+ALSO DETECTED
+  1 of 3 replicas are ready
+
+  Each replica of a StatefulSet has its own identity and its own storage, so
+  they fail one at a time rather than as a group. The findings above say which
+  one and why.
+
+  Evidence
+    spec.replicas           3
+    status.readyReplicas    1
+    status.currentReplicas  2
+    status.updatedReplicas  2
+
+Replicas
+  Desired  3
+  Ready    1
+  Updated  2
+  Age      1d
+
+Management
+  Pod creation       one at a time, in order
+  Updates            rolling
+  Governing Service  postgres  headless
+
+Replicas by ordinal
+  postgres-0  Ready           1h old
+  postgres-1  Pending         1h old
+  postgres-2  does not exist  never created
+
+Volumes
+  Claim templates  data  one claim per replica
+  data-postgres-0  Bound
+  data-postgres-1  Pending

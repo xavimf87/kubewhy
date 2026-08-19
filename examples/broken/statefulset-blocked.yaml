@@ -1,0 +1,50 @@
+# A StatefulSet whose second replica never becomes ready, which stops the third
+# from being created at all.
+# Expected: STATEFULSET_ORDERED_ROLLOUT_BLOCKED naming db-1 as the blocker and
+# db-2 as never created.
+#
+# The trick: the container is ready only when /ready exists, and it creates that
+# file only on the replica whose ordinal is 0. Replica 1 therefore starts, runs
+# and never passes its readiness probe — which is exactly the shape of a real
+# StatefulSet that cannot join its own quorum.
+apiVersion: v1
+kind: Service
+metadata:
+  name: blocked-demo
+  labels: { app: kubewhy-demo, case: statefulset }
+spec:
+  clusterIP: None
+  selector: { app: blocked-demo }
+  ports:
+    - port: 8080
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: blocked-demo
+  labels: { app: kubewhy-demo, case: statefulset }
+spec:
+  serviceName: blocked-demo
+  replicas: 3
+  selector:
+    matchLabels: { app: blocked-demo }
+  template:
+    metadata:
+      labels: { app: blocked-demo }
+    spec:
+      terminationGracePeriodSeconds: 1
+      containers:
+        - name: app
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - 'case "$(hostname)" in *-0) touch /tmp/ready ;; esac; sleep 3600'
+          readinessProbe:
+            exec:
+              command: ["test", "-f", "/tmp/ready"]
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            failureThreshold: 2
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }

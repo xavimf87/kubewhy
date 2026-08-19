@@ -220,6 +220,7 @@ kubectl why version
 | Pod | `pods`, `po` | Container states, conditions, events, ownership, node, mounted claims, referenced config |
 | Service | `services`, `svc` | Selector, matching Pods, EndpointSlices, ports — and the Pod rules over its backends |
 | Deployment | `deployments`, `deploy` | Replica counts, conditions, ReplicaSets — and the Pod rules over its Pods, aggregated |
+| StatefulSet | `statefulsets`, `sts` | Ordered creation, per-replica volumes, the governing headless Service, update strategy — and the Pod rules over its replicas |
 | Ingress | `ingresses`, `ing` | Ingress → Service → port → EndpointSlice → Pods, plus the ingress class |
 | PersistentVolumeClaim | `persistentvolumeclaims`, `pvc` | Phase, storage class and binding mode, provisioning events, consuming Pods |
 
@@ -277,6 +278,19 @@ Every finding carries a **stable identifier**, a **severity** and a **confidence
 | `DEPLOYMENT_REPLICA_FAILURE` | Pods that were rejected before they ever ran, with the API server's reason. |
 | `DEPLOYMENT_ROLLOUT_IN_PROGRESS` | A rollout happening right now, so a replica gap is not mistaken for a fault. |
 | `DEPLOYMENT_SCALED_TO_ZERO` / `DEPLOYMENT_PAUSED` | States the Deployment is in on purpose. |
+
+### StatefulSet
+
+| Identifier | What it detects |
+| --- | --- |
+| `STATEFULSET_ORDERED_ROLLOUT_BLOCKED` | The one replica that is holding up every replica after it — and which ones were never created because of it. |
+| `STATEFULSET_CLAIM_NOT_BOUND` | A per-replica volume that will not bind, named by the replica it belongs to. |
+| `STATEFULSET_CLAIM_NOT_FOUND` | A templated claim that does not exist. |
+| `STATEFULSET_SERVICE_NOT_FOUND` | The governing Service is missing, so the Pods have no resolvable names — while looking perfectly healthy. |
+| `STATEFULSET_SERVICE_NOT_HEADLESS` | It exists but has a cluster IP, which is the opposite of what a StatefulSet needs. |
+| `STATEFULSET_UPDATE_ON_DELETE` / `_PARTITIONED` | A rollout that is waiting on purpose, not stalled. |
+| `STATEFULSET_UNAVAILABLE_REPLICAS` | Fewer ready replicas than requested. |
+| `STATEFULSET_SCALED_TO_ZERO` | Scaled to zero on purpose — and its claims are kept. |
 
 ### Ingress
 
@@ -440,6 +454,7 @@ A change to any of them is released as a breaking change and explained in the re
 - [x] Pod diagnostics, text and JSON output, exit codes, RBAC degradation
 - [x] Service diagnostics (selector, EndpointSlices, readiness, named ports)
 - [x] Deployment diagnostics (rollouts, conditions, aggregated Pod failures)
+- [x] StatefulSet diagnostics (ordered rollouts, per-replica volumes, headless Service)
 - [x] Ingress diagnostics (Ingress → Service → port → EndpointSlice → Pod)
 - [x] PersistentVolumeClaim diagnostics (storage class, binding mode, provisioning)
 - [ ] Release binaries and Krew submission

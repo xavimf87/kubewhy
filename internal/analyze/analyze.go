@@ -21,6 +21,8 @@ func Analyze(ctx context.Context, client *kube.Client, kind kube.Kind, namespace
 		return Service(ctx, client, namespace, name)
 	case kube.KindDeployment:
 		return Deployment(ctx, client, namespace, name)
+	case kube.KindStatefulSet:
+		return StatefulSet(ctx, client, namespace, name)
 	case kube.KindIngress:
 		return Ingress(ctx, client, namespace, name)
 	case kube.KindPVC:

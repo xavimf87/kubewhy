@@ -1,0 +1,25 @@
+# A StatefulSet whose governing Service does not exist. Every Pod runs and
+# reports Ready, and none of them has a resolvable DNS name.
+# Expected: STATEFULSET_SERVICE_NOT_FOUND — a warning on a workload that looks
+# perfectly healthy, which is the whole point of the rule.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: no-service-demo
+  labels: { app: kubewhy-demo, case: statefulset-service }
+spec:
+  serviceName: a-headless-service-that-does-not-exist
+  replicas: 1
+  selector:
+    matchLabels: { app: no-service-demo }
+  template:
+    metadata:
+      labels: { app: no-service-demo }
+    spec:
+      terminationGracePeriodSeconds: 1
+      containers:
+        - name: app
+          image: busybox:1.36
+          command: ["sh", "-c", "sleep 3600"]
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }

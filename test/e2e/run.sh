@@ -126,6 +126,9 @@ scenario deploy payments-demo         1 DEPLOYMENT_UNAVAILABLE_REPLICAS
 
 scenario ing api-demo                 1 INGRESS_SERVICE_NOT_FOUND
 
+scenario sts blocked-demo             1 STATEFULSET_ORDERED_ROLLOUT_BLOCKED
+scenario sts no-service-demo          1 STATEFULSET_SERVICE_NOT_FOUND
+
 # A resource that does not exist has its own exit code.
 scenario pod ghost-demo               3
 
