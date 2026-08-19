@@ -49,9 +49,10 @@ vet: ## Run go vet
 
 .PHONY: lint
 lint: ## Run golangci-lint when it is installed
-	@command -v golangci-lint >/dev/null 2>&1 \
-		&& golangci-lint run \
-		|| echo "golangci-lint is not installed; see https://golangci-lint.run"
+	@command -v golangci-lint >/dev/null 2>&1 || { \
+		echo "golangci-lint is not installed; see https://golangci-lint.run"; exit 0; }
+	@golangci-lint config verify
+	@golangci-lint run
 
 .PHONY: check
 check: fmt vet test scripts ## Everything CI runs on a pull request

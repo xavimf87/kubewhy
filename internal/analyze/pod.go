@@ -134,7 +134,7 @@ func restartsItem(snap *snapshot.Pod) diagnosis.Item {
 
 	var latest time.Time
 	for _, container := range snap.Containers() {
-		if last := container.LastTerminated(); last != nil && last.FinishedAt.Time.After(latest) {
+		if last := container.LastTerminated(); last != nil && last.FinishedAt.After(latest) {
 			latest = last.FinishedAt.Time
 		}
 	}

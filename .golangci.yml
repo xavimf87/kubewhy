@@ -14,12 +14,23 @@ linters:
     - ineffassign   # assignments that are never used
     - staticcheck   # correctness and simplification
     - unused        # dead code
+    # No locale is set for misspell on purpose. Enforcing British spelling
+    # flags Color, NO_COLOR and "normalized" — a Go field, an environment
+    # variable defined by no-color.org, and the word the Kubernetes API itself
+    # uses. The prose here is British by hand; the code spells things the way
+    # its own standards do.
     - misspell      # typos in comments and strings
     - bodyclose     # leaked HTTP response bodies
 
   settings:
-    misspell:
-      locale: UK
+    errcheck:
+      # A command-line tool that cannot write to its own stdout has nothing
+      # useful to do about it. Everywhere the error can be acted on — the text
+      # renderer — it is tracked and returned.
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
     staticcheck:
       checks:
         - all

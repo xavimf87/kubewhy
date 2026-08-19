@@ -78,6 +78,9 @@ func TestServiceCollectsBackendsAndEndpoints(t *testing.T) {
 // Clusters that do not serve the discovery API must still be diagnosable.
 func TestServiceFallsBackToEndpoints(t *testing.T) {
 	service := kubetest.Service("payments").Selector("app", "payments").Port(80, 8080).Build()
+	// The deprecated Endpoints API is exactly what this test covers: KubeWhy
+	// falls back to it for clusters that do not serve EndpointSlices.
+	//nolint:staticcheck // testing the legacy API on purpose
 	legacy := &corev1.Endpoints{
 		ObjectMeta: metav1.ObjectMeta{Name: "payments", Namespace: "default"},
 		Subsets: []corev1.EndpointSubset{{

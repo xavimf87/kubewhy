@@ -110,7 +110,7 @@ func describeLastRun(c snapshot.Container) string {
 	}
 	if !last.StartedAt.IsZero() && !last.FinishedAt.IsZero() {
 		out += fmt.Sprintf(" after running for %s",
-			format.Duration(last.FinishedAt.Time.Sub(last.StartedAt.Time)))
+			format.Duration(last.FinishedAt.Sub(last.StartedAt.Time)))
 	}
 	return out
 }
