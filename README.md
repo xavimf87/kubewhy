@@ -161,7 +161,33 @@ The version is resolved rather than written in, so the command does not go stale
 
 Verify the archive against `checksums.txt` from the same release if you like.
 
-If you download through a browser instead, macOS quarantines the file and Gatekeeper refuses to run it; `xattr -d com.apple.quarantine /usr/local/bin/kubectl-why` clears that. Fetching it with `curl` as above never sets the attribute.
+#### macOS: "Apple could not verify kubectl-why is free of malware"
+
+If macOS offers to move the binary to the bin instead of running it, this is why, and it is not a sign that anything is wrong with the download.
+
+The binary **is** signed — the Go linker signs every arm64 build ad hoc, which macOS requires just to execute — but it is not **notarized**, because notarizing needs a paid Apple Developer account. Gatekeeper only enforces notarization on files carrying the `com.apple.quarantine` attribute, and that attribute is set by **browsers**, not by `curl`.
+
+So, in order of least effort:
+
+```bash
+# 1. Download with curl, as the command above does. No quarantine, no dialog.
+
+# 2. Already downloaded through a browser? Clear the attribute:
+xattr -d com.apple.quarantine /usr/local/bin/kubectl-why
+
+# 3. Or click through it once: System Settings → Privacy & Security → Open Anyway.
+```
+
+Package managers do not have this problem: neither Krew nor Homebrew sets the quarantine attribute, so a binary installed through either just runs.
+
+You can check any of it yourself:
+
+```console
+$ codesign -dv kubectl-why 2>&1 | grep flags
+CodeDirectory ... flags=0x20002(adhoc,linker-signed)
+
+$ xattr -l /usr/local/bin/kubectl-why      # nothing named quarantine? nothing will block it
+```
 
 ### With `go install`
 

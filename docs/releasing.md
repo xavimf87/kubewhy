@@ -109,6 +109,19 @@ No secrets to configure. `GITHUB_TOKEN` covers tagging and publishing.
 
 **A failed release.** The tag has to exist before the build, because it is what the version is derived from, so a build that fails afterwards would leave a tag naming a release nobody can install — and the next run would read that tag as the last release and skip the version. The workflow deletes the tag when publishing fails, so the next attempt retries the same version instead of burning it.
 
+## macOS notarization
+
+The darwin binaries are ad-hoc signed by the Go linker, which is enough to
+execute, but they are not notarized. Users who download through a browser get
+the quarantine attribute and a Gatekeeper dialog offering to bin the file; the
+README explains the three ways around it.
+
+Removing that dialog entirely needs a paid Apple Developer account, a Developer
+ID Application certificate and a notarization step in the release. GoReleaser
+supports it, and it costs 99 USD a year. Until someone decides that is worth
+it, the free ways around it are Krew and Homebrew: neither sets the quarantine
+attribute, so a binary installed through either simply runs.
+
 ## Krew
 
 The plugin is called `why` in the index, so it installs as `kubectl krew install why` and runs as `kubectl why`.
