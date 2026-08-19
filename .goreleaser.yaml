@@ -22,7 +22,9 @@ builds:
       - -trimpath
     ldflags:
       - -s -w
-      - -X github.com/xavimf87/kubewhy/internal/version.Version={{ .Version }}
+      # .Tag rather than .Version: the latter strips the leading v, and the
+      # tag, the release and `go install ...@v0.1.1` all keep it.
+      - -X github.com/xavimf87/kubewhy/internal/version.Version={{ .Tag }}
       - -X github.com/xavimf87/kubewhy/internal/version.Commit={{ .FullCommit }}
       - -X github.com/xavimf87/kubewhy/internal/version.Date={{ .Date }}
     goos: [linux, darwin, windows]

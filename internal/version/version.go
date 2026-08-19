@@ -3,6 +3,7 @@ package version
 
 import (
 	"fmt"
+	"regexp"
 	"runtime"
 	"runtime/debug"
 )
@@ -27,11 +28,25 @@ type Info struct {
 	Platform  string `json:"platform"`
 }
 
+// semverRe matches a bare semantic version, with no leading v.
+var semverRe = regexp.MustCompile(`^\d+\.\d+\.\d+`)
+
+// canonical gives a version the leading v that the git tag, the GitHub release
+// and `go install ...@v1.2.3` all use. Whoever builds the binary decides what
+// goes in the ldflag, and a packager passing a bare 1.2.3 should not end up
+// reporting a version that matches nothing a user can type.
+func canonical(version string) string {
+	if semverRe.MatchString(version) {
+		return "v" + version
+	}
+	return version
+}
+
 // Get returns the build metadata, falling back to what the Go toolchain
 // recorded when ldflags were not used.
 func Get() Info {
 	info := Info{
-		Version:   Version,
+		Version:   canonical(Version),
 		Commit:    Commit,
 		BuildDate: Date,
 		GoVersion: runtime.Version(),
