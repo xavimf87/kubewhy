@@ -14,9 +14,9 @@
 
 <p align="center">
   <a href="https://github.com/xavimf87/kubewhy/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/xavimf87/kubewhy?sort=semver&color=4A8BF5"></a>
-  <a href="https://github.com/xavimf87/kubewhy/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/xavimf87/kubewhy/actions/workflows/ci.yml/badge.svg"></a>
-  <a href="https://goreportcard.com/report/github.com/xavimf87/kubewhy"><img alt="Go report card" src="https://goreportcard.com/badge/github.com/xavimf87/kubewhy"></a>
+  <a href="https://github.com/xavimf87/kubewhy/actions/workflows/main.yml"><img alt="Main pipeline" src="https://github.com/xavimf87/kubewhy/actions/workflows/main.yml/badge.svg"></a>
   <a href="https://pkg.go.dev/github.com/xavimf87/kubewhy"><img alt="Go reference" src="https://pkg.go.dev/badge/github.com/xavimf87/kubewhy.svg"></a>
+  <a href="go.mod"><img alt="Go version" src="https://img.shields.io/github/go-mod/go-version/xavimf87/kubewhy?color=4A8BF5"></a>
   <a href="LICENSE"><img alt="Apache 2.0 licence" src="https://img.shields.io/badge/licence-Apache%202.0-blue.svg"></a>
   <a href="docs/security.md"><img alt="Read-only by design" src="https://img.shields.io/badge/cluster%20access-read--only-brightgreen.svg"></a>
 </p>
