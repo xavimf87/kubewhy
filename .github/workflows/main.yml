@@ -118,11 +118,12 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # GITHUB_TOKEN cannot write to another repository, so pushing the
-          # Homebrew formula to the tap needs its own. It is empty until the
-          # secret exists, which GoReleaser is configured to treat as "skip", so
-          # a release never fails over a formula it could not publish.
-          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          # GITHUB_TOKEN cannot write to another repository. A deploy key that
+          # can write to the Homebrew tap and to nothing else does the job with
+          # far less authority than a personal access token would carry. Empty
+          # if the secret is absent, which GoReleaser treats as "skip the cask"
+          # rather than failing a release that already shipped.
+          HOMEBREW_TAP_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
 
       # A tag left behind by a build that failed would name a release nobody
       # can install, and the next run would read it as the last release and

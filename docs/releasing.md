@@ -115,16 +115,38 @@ Every release pushes a cask to [xavimf87/homebrew-tap](https://github.com/xavimf
 so `brew install xavimf87/tap/kubewhy` is always the version that was just
 published. Nothing in that repository is edited by hand.
 
-It needs one secret, because `GITHUB_TOKEN` cannot write to another repository:
+It needs one credential, because `GITHUB_TOKEN` cannot write to another
+repository. That credential is an **SSH deploy key**, not a personal access
+token: a token able to push to the tap would carry every permission the account
+has, while a deploy key writes to the tap and to nothing else, and revoking it
+breaks nothing else either.
 
-1. Create a fine-grained personal access token with **Contents: read and write**
-   on `xavimf87/homebrew-tap` and nothing else.
-2. Add it to this repository as the secret `HOMEBREW_TAP_TOKEN`.
+It is already set up:
 
-Until that secret exists the cask is skipped rather than attempted, so a
-release never fails over a formula it could not push. The workflow always
-defines the variable, empty or not, because GoReleaser cannot default an
-environment variable that is absent entirely.
+| Where | What |
+| --- | --- |
+| `xavimf87/homebrew-tap` → Settings → Deploy keys | `goreleaser (kubewhy releases)`, write enabled |
+| `xavimf87/kubewhy` → Settings → Secrets → Actions | `HOMEBREW_TAP_DEPLOY_KEY`, the private half |
+
+To rotate it, generate a new pair, replace both halves, and delete the old key:
+
+```bash
+umask 077; TMP=$(mktemp -d)
+ssh-keygen -t ed25519 -N "" -C "goreleaser@kubewhy" -f "$TMP/tapkey" -q
+gh api -X POST repos/xavimf87/homebrew-tap/keys \
+  -f title="goreleaser (kubewhy releases)" -f key="$(cat $TMP/tapkey.pub)" -F read_only=false
+gh secret set HOMEBREW_TAP_DEPLOY_KEY --repo xavimf87/kubewhy < "$TMP/tapkey"
+rm -rf "$TMP"
+```
+
+The key must have no passphrase: GoReleaser refuses a password-protected one.
+It reads the key material straight from the variable rather than from a path,
+so nothing has to be written to disk in the workflow.
+
+Without the secret the cask is skipped rather than attempted, so a release
+never fails over a cask it could not push. The workflow always defines the
+variable, empty or not, because GoReleaser has no way to default one that is
+absent entirely.
 
 A cask rather than a formula: GoReleaser deprecated `brews`, and casks now work
 on Linuxbrew too. The cask's `postflight` hook strips

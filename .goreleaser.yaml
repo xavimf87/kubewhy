@@ -60,20 +60,23 @@ homebrew_casks:
       owner: xavimf87
       name: homebrew-tap
       branch: main
-      # A token of its own, because GITHUB_TOKEN cannot write to another
-      # repository. Set HOMEBREW_TAP_TOKEN in this repository's secrets.
-      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+      # Pushed over SSH with a deploy key rather than a personal access token.
+      # GITHUB_TOKEN cannot write to another repository, and a token that could
+      # would carry every permission this account has. A deploy key writes to
+      # the tap and to nothing else, and revoking it breaks nothing but this.
+      git:
+        url: git@github.com:xavimf87/homebrew-tap.git
+        private_key: "{{ .Env.HOMEBREW_TAP_DEPLOY_KEY }}"
     directory: Casks
     homepage: https://github.com/xavimf87/kubewhy
     description: A read-only kubectl plugin that explains why Kubernetes resources aren't working
     license: Apache-2.0
     binaries:
       - kubectl-why
-    # Until the token exists, publish nothing rather than fail a release whose
-    # binaries have already shipped. The release workflow always defines the
-    # variable, empty or not, because GoReleaser has no way to default one that
-    # is absent entirely.
-    skip_upload: '{{ if eq .Env.HOMEBREW_TAP_TOKEN "" }}true{{ else }}false{{ end }}'
+    # Without the key, publish nothing rather than fail a release whose binaries
+    # have already shipped. The workflow always defines the variable, empty or
+    # not, because GoReleaser has no way to default one that is absent entirely.
+    skip_upload: '{{ if eq .Env.HOMEBREW_TAP_DEPLOY_KEY "" }}true{{ else }}false{{ end }}'
     hooks:
       post:
         install: |
