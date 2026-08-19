@@ -1,6 +1,6 @@
 module github.com/xavimf87/kubewhy
 
-go 1.26.1
+go 1.26.0
 
 require (
 	github.com/spf13/cobra v1.10.2

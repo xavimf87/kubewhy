@@ -4,7 +4,7 @@ Thanks for being here. KubeWhy is deliberately built so that the most valuable c
 
 ## Local setup
 
-You need Go 1.24 or newer. No cluster is required for the unit tests.
+You need Go 1.26 or newer — the Kubernetes libraries require it, so this is not a choice KubeWhy makes. No cluster is required for the unit tests.
 
 ```bash
 git clone https://github.com/xavimf87/kubewhy
